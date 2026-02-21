@@ -41,8 +41,8 @@ export default function PurchaseOrder() {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!isNew || !book) return
-    const po = addOrder({ client, lineItems, date })
-    if (po) navigate(`/book/${bookId}/po/${po.id}/print`)
+    addOrder({ client, lineItems, date })
+    navigate(`/book/${bookId}`)
   }
 
   if (!book) {
@@ -98,7 +98,7 @@ export default function PurchaseOrder() {
           </table>
           <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>Order total: {orderTotal.toFixed(2)}</p>
         </section>
-        <button type="submit" style={primaryBtn}>Save & open print view</button>
+        <button type="submit" style={primaryBtn}>Save</button>
       </form>
     </div>
   )

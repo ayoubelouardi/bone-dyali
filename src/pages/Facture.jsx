@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { getBook, getPurchaseOrder } from '../lib/storage'
 import FactureView from '../components/FactureView'
 
@@ -11,5 +11,12 @@ export default function Facture() {
     return <p>Invoice not found.</p>
   }
 
-  return <FactureView book={book} po={po} />
+  return (
+    <>
+      <div className="no-print" style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <Link to={`/book/${bookId}`} style={{ color: '#64748b' }}>← Back to archive</Link>
+      </div>
+      <FactureView book={book} po={po} />
+    </>
+  )
 }
