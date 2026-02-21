@@ -103,23 +103,42 @@
 
 ```
 bone-dyali/
-├── index.html          # Entry; shell for SPA (dashboard or router target)
-├── css/
-│   ├── main.css        # Global + dashboard + forms
-│   └── print.css       # Print-only facture layout (hide nav, buttons, etc.)
-├── js/
-│   ├── app.js          # Init, routing (if any), global state
-│   ├── storage.js      # Load/save books & POs (localStorage/IndexedDB)
-│   ├── books.js        # Book CRUD, list, navigation
-│   ├── purchase-order.js  # PO CRUD, calculations, line items
-│   ├── facture.js      # Render facture DOM + trigger print
-│   └── export-import.js   # JSON export/import
+├── index.html              # Vite entry; root div for React
+├── package.json
+├── vite.config.js
+├── src/
+│   ├── main.jsx             # React root, StrictMode, Router
+│   ├── App.jsx              # Router setup, layout shell
+│   ├── index.css            # Global styles
+│   ├── print.css            # Print-only facture (import in facture route or App)
+│   ├── components/
+│   │   ├── Layout.jsx       # Shell: nav, outlet for routes
+│   │   ├── BookCard.jsx     # Single book in dashboard (color, name, link)
+│   │   ├── BookForm.jsx     # Create/edit book (name, owner, color, pages)
+│   │   ├── PoForm.jsx       # PO form: client, line items, totals
+│   │   ├── LineItemRow.jsx  # Single line item (qty, description, code, price)
+│   │   ├── FactureView.jsx  # Bilingual facture layout; print trigger
+│   │   └── ...
+│   ├── pages/
+│   │   ├── Dashboard.jsx    # List books, "Create Book" entry
+│   │   ├── BookDetail.jsx   # PO list for one book, "New PO" button
+│   │   ├── PurchaseOrder.jsx # New/edit PO form
+│   │   └── Facture.jsx      # Print view for one PO (or wrapper around FactureView)
+│   ├── hooks/
+│   │   ├── useBooks.js      # Load/save books (calls storage)
+│   │   ├── usePurchaseOrders.js  # Load/save POs for a book
+│   │   └── useStorage.js    # Optional: generic persistence hook
+│   ├── lib/
+│   │   ├── storage.js       # localStorage/IndexedDB read/write
+│   │   └── exportImport.js  # JSON export/import
+│   └── context/
+│       └── AppContext.jsx   # Optional: shared books/current book
 └── docs/
     ├── srs.md
     └── technical_plan.md
 ```
 
-- **Routing:** Hash-based or single view with show/hide of “dashboard” vs “book detail” vs “PO form” vs “facture view” is sufficient (no framework required).
+- **Routing:** React Router with routes such as `/`, `/book/:bookId`, `/book/:bookId/po/new`, `/book/:bookId/po/:poId`, `/book/:bookId/po/:poId/print`.
 
 ---
 
@@ -127,37 +146,37 @@ bone-dyali/
 
 | SRS Section           | Technical Implementation |
 |-----------------------|--------------------------|
-| **2.1 Dashboard**     | `index.html` + `books.js`: list books, “Create Book” form; persist via `storage.js`. |
-| **2.1 Create Book**   | Form: name, ownerName, color (picker), totalPages; validate; save; redirect to book view. |
-| **2.1 Book color**    | Use `book.color` in list/cards (border or background) for visual identification. |
-| **2.1 Book navigation** | Click book → load PO list for that `bookId`; “New PO” button. |
-| **2.2 PO creation**   | Form: auto-fill PO number (from `book.nextPoNumber`), current date; client fields; dynamic line items (add/remove rows). |
-| **2.2 Calculations**  | On input change: compute line total and order total in `purchase-order.js`; no TVA. |
-| **2.3 Local persistence** | `storage.js`: read/write books and POs; decide localStorage vs IndexedDB. |
+| **2.1 Dashboard**     | `Dashboard.jsx`: list books via `useBooks`; “Create Book” links to form or modal; persist via `lib/storage.js`. |
+| **2.1 Create Book**   | `BookForm.jsx`: name, ownerName, color (picker), totalPages; validate; save via storage; navigate to book detail. |
+| **2.1 Book color**    | `BookCard.jsx` (and book detail): use `book.color` for border/background. |
+| **2.1 Book navigation** | `BookDetail.jsx`: route `/book/:bookId`; load POs with `usePurchaseOrders(bookId)`; "New PO" → load PO list for that `bookId`; “New PO” button. |
+| **2.2 PO creation**   | `PoForm.jsx`: auto-fill PO number from book, current date; client fields; dynamic line items (add/remove rows). |
+| **2.2 Calculations**  | In `PoForm.jsx` or `LineItemRow.jsx`: compute line total and order total on input (useState/useMemo); no TVA. |
+| **2.3 Local persistence** | `lib/storage.js`: read/write books and POs; consumed by hooks `useBooks`, `usePurchaseOrders`. |
 | **2.3 Archive**       | On “Save” PO: append to book’s PO list in storage; increment `book.nextPoNumber`. |
-| **2.3 Export**        | `export-import.js`: serialize all books + POs to JSON; trigger download. |
-| **2.3 Import**        | File input → parse JSON → validate → replace (or merge) storage; reload UI. |
-| **2.4 Facture print**  | `facture.js`: build printable DOM from PO + book (owner name); `print.css`: hide non-invoice UI; RTL + bilingual labels. |
+| **2.3 Export**        | `lib/exportImport.js`: serialize all books + POs to JSON; trigger download (e.g. from Dashboard or Layout). |
+| **2.3 Import**        | File input (Dashboard or settings): parse JSON → validate → replace/merge storage; invalidate hooks / navigate. |
+| **2.4 Facture print**  | `FactureView.jsx` (or `Facture.jsx`): render facture from PO + book; `print.css` hides nav/buttons; RTL + bilingual labels; "Print" calls `window.print()`. |
 | **2.4 Layout (header)** | Invoice number (EN/AR), date (EN/AR), prominent owner box (مربع اسم مالك الفاتورة), client (Messrs. / المطلوب من السادة). |
 | **2.4 Table**         | Columns: QTY/العدد, DESCRIPTION/نوع البضاعة, CODE/كود البضاعة, UNIT PRICE/الثمن, AMOUNT/الثمن الكلي; footer row TOTAL/المجموع. |
-| **3 Technical**       | No server; HTML/JS/CSS only; Web Storage API. |
+| **3 Technical**       | No server; React + Vite; Web Storage API. |
 | **4 UI**              | Book color in UI; responsive layout optimized for desktop and print. |
 
 ---
 
 ## 7. Print (Facture) Implementation
 
-1. **Template:** A dedicated container (e.g. `#facture-print`) filled by `facture.js` with:
+1. **Template:** React component `FactureView.jsx` (or `Facture.jsx`) renders a container (e.g. `id="facture-print"` or class `facture-print`) with:
    - Header: invoice number, date, owner box, client name
    - Table: line items + totals
    - Bilingual labels as per SRS
-2. **RTL:** Apply `dir="rtl"` (or a class) to Arabic sections; keep layout correct for mixed EN/AR.
-3. **CSS:**  
-   - `@media print { }` in `print.css`  
-   - Hide header, nav, buttons, forms (e.g. `body > *:not(#facture-print)` or class-based).  
-   - Show only `#facture-print` (or equivalent).  
+2. **Data:** Facture page reads `bookId` and `poId` from route params; loads book + PO via hooks or context; passes to `FactureView`.
+3. **RTL:** Apply `dir="rtl"` (or a class) to Arabic sections; keep layout correct for mixed EN/AR.
+4. **CSS:**  
+   - `@media print { }` in `print.css` (import in App or facture route).  
+   - Hide header, nav, buttons, forms (e.g. `.no-print` on layout; print rules hide `.no-print` and show only `.facture-print`).  
    - Page size, margins, and font size tuned for A4/Letter.
-4. **Trigger:** “Print” button calls `window.print()` after the facture DOM is rendered.
+5. **Trigger:** “Print” button calls `window.print()` (e.g. in an effect or button handler after mount).
 
 ---
 
@@ -165,12 +184,12 @@ bone-dyali/
 
 | Phase | Scope | Deliverables |
 |-------|--------|--------------|
-| **1 – Foundation** | Storage, data models, shell UI | `storage.js` (localStorage), `app.js`, basic `index.html` + `main.css`; create/read books. |
-| **2 – Books & Dashboard** | Full book CRUD, color, navigation | Dashboard list, create book form, book detail view with PO list; color in UI. |
-| **3 – Purchase Orders** | PO form, calculations, archive | PO form with auto PO# and date; line items; totals; save to book’s archive. |
-| **4 – Facture & Print** | Bilingual facture, print CSS | `facture.js` + `print.css`; layout matches SRS; window.print() works. |
-| **5 – Export/Import** | Backup/restore | Export all data to JSON file; import from file with validation. |
-| **6 – Polish** | UX, validation, edge cases | Form validation, error messages, responsive tweaks, any IndexedDB migration if needed. |
+| **1 – Foundation** | Vite + React, storage, data models | Vite React project; `lib/storage.js` (localStorage); `App.jsx` + React Router; `useBooks` hook; minimal `Dashboard.jsx` listing books. |
+| **2 – Books & Dashboard** | Full book CRUD, color, navigation | `BookCard`, `BookForm`, `BookDetail.jsx`; create/edit book; PO list per book; color in UI. |
+| **3 – Purchase Orders** | PO form, calculations, archive | `PoForm.jsx`, `LineItemRow.jsx`; `usePurchaseOrders`; auto PO# and date; line totals + order total; save to archive. | PO form with auto PO# and date; line items; totals; save to book’s archive. |
+| **4 – Facture & Print** | Bilingual facture, print CSS | `FactureView.jsx` (or `Facture.jsx`); `print.css`; layout per SRS; print route; `window.print()`. |
+| **5 – Export/Import** | Backup/restore | `lib/exportImport.js`; export/import UI (e.g. in Dashboard or Layout); validation on import. |
+| **6 – Polish** | UX, validation, edge cases | Form validation, error states, responsive tweaks, IndexedDB migration if needed. |
 
 ---
 
@@ -189,4 +208,4 @@ bone-dyali/
 - **IndexedDB:** Whether to adopt from the start or only if localStorage limits are hit.
 - **PO number gaps:** Behavior when a PO is deleted (e.g. keep incrementing vs reusing numbers).
 
-Once these are decided, they can be reflected in `storage.js` and `export-import.js` and, if needed, in an update to this technical plan.
+Once these are decided, they can be reflected in `lib/storage.js`, `lib/exportImport.js`, and the relevant React hooks/components, and if needed in an update to this technical plan.
