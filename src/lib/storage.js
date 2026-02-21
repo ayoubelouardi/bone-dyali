@@ -101,3 +101,14 @@ export function createPurchaseOrder(bookId, { client, lineItems, date }) {
 export function getPurchaseOrder(bookId, poId) {
   return getPurchaseOrders(bookId).find((p) => p.id === poId) ?? null
 }
+
+/** Permanently delete all app data from localStorage. */
+export function nukeDatabase() {
+  const books = getBooks()
+  for (const book of books) {
+    try {
+      localStorage.removeItem(poKey(book.id))
+    } catch {}
+  }
+  localStorage.removeItem(BOOKS_KEY)
+}
