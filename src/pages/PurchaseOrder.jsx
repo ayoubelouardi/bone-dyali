@@ -14,7 +14,7 @@ export default function PurchaseOrder() {
   const [lineItems, setLineItems] = useState([emptyLine()])
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
 
-  const isNew = poId === 'new'
+  const isNew = !poId || poId === 'new'
   const orderTotal = useMemo(
     () =>
       lineItems.reduce(
