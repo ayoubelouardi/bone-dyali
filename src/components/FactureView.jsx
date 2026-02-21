@@ -1,10 +1,13 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
+import './FactureView.css'
 
 export default function FactureView({ book, po }) {
-  const containerRef = useRef(null)
+  const pageRef = useRef(null)
 
   useEffect(() => {
-    if (containerRef.current) containerRef.current.focus?.()
+    if (pageRef.current) pageRef.current.focus?.()
   }, [])
 
   const orderTotal = (po?.lineItems || []).reduce(
@@ -12,57 +15,100 @@ export default function FactureView({ book, po }) {
     0
   )
 
-  const handlePrint = () => window.print()
+  const handleDownloadPDF = useCallback(async () => {
+    const node = pageRef.current
+    if (!node || !po) return
+    try {
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#faf8f5',
+      })
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
+      const pageW = 210
+      const pageH = 297
+      const canvasRatio = canvas.height / canvas.width
+      const pageRatio = pageH / pageW
+      const imgW = canvasRatio <= pageRatio ? pageW : pageH / canvasRatio
+      const imgH = canvasRatio <= pageRatio ? pageW * canvasRatio : pageH
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, imgH)
+      pdf.save(`po-${po.poNumber}.pdf`)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+    }
+  }, [po])
 
   if (!book || !po) return <p>Loading…</p>
 
   return (
     <>
-    <div className="no-print" style={{ marginBottom: '1rem' }}>
-      <button type="button" onClick={handlePrint} style={{ padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6 }}>Print</button>
-    </div>
-    <div ref={containerRef} className="facture-print" style={{ background: '#fff', padding: '2rem', maxWidth: 800 }} dir="rtl">
-      <header style={{ marginBottom: '1.5rem', textAlign: 'right' }}>
-        <p style={{ margin: 0 }}>Invoice Number / رقم الفاتورة: {po.poNumber}</p>
-        <p style={{ margin: 0 }}>Date / التاريخ: {po.date}</p>
-        <div style={{ border: '2px solid #1a1a1a', padding: '0.75rem', marginTop: '1rem', textAlign: 'center', fontWeight: 700 }}>
-          {book.ownerName || book.name}
+      <div className="no-print" style={{ marginBottom: '1rem' }}>
+        <button
+          type="button"
+          onClick={handleDownloadPDF}
+          style={{ padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6 }}
+        >
+          Download PDF
+        </button>
+      </div>
+      <div ref={pageRef} className="facture-print po-book-page" dir="rtl">
+        <div className="po-book-page__inner">
+          <header className="po-book-page__header">
+            <div className="po-book-page__header-left">
+              <p className="po-book-page__facture-title">Facture</p>
+              <p className="po-book-page__facture-meta">
+                <span className="po-book-page__n-label">N°</span> {po.poNumber}
+              </p>
+              <p className="po-book-page__facture-meta">Date {po.date}</p>
+            </div>
+            <div className="po-book-page__owner-box">
+              {book.ownerName || book.name}
+              {book.ownerPhone && (
+                <span className="po-book-page__owner-phone">{book.ownerPhone}</span>
+              )}
+            </div>
+          </header>
+
+          <div className="po-book-page__client-block">
+            <span className="po-book-page__client-label">Messrs. / المطلوب من </span>
+            <span className="po-book-page__client-name">{po.client?.name || '—'}</span>
+          </div>
+          {po.client?.address && (
+            <p className="po-book-page__facture-meta" style={{ marginBottom: 8 }}>{po.client.address}</p>
+          )}
+
+          <div className="po-book-page__content">
+            <table>
+              <thead>
+                <tr>
+                  <th>الكمية<br />QTY</th>
+                  <th>الشرح<br />DESCRIPTION</th>
+                  <th>كود البضاعة<br />CODE</th>
+                  <th>السعر الافرادي<br />Unit. Price</th>
+                  <th>المجموع<br />Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(po.lineItems || []).map((item, i) => (
+                  <tr key={i}>
+                    <td>{item.quantity}</td>
+                    <td>{item.description}</td>
+                    <td>{item.code}</td>
+                    <td>{Number(item.unitPrice).toFixed(2)}</td>
+                    <td>{((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <footer className="po-book-page__footer">
+            <span className="po-book-page__total-label">المجموع</span>
+            <span className="po-book-page__total-amount">{orderTotal.toFixed(2)} $</span>
+          </footer>
         </div>
-        <p style={{ marginTop: '1rem', margin: 0 }}>Messrs. / المطلوب من السادة: {po.client?.name || '—'}</p>
-        {po.client?.address && <p style={{ margin: 0 }}>{po.client.address}</p>}
-      </header>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>QTY / العدد</th>
-            <th style={thStyle}>DESCRIPTION / نوع البضاعة</th>
-            <th style={thStyle}>CODE / كود البضاعة</th>
-            <th style={thStyle}>UNIT PRICE / الثمن</th>
-            <th style={thStyle}>AMOUNT / الثمن الكلي</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(po.lineItems || []).map((item, i) => (
-            <tr key={i}>
-              <td style={tdStyle}>{item.quantity}</td>
-              <td style={tdStyle}>{item.description}</td>
-              <td style={tdStyle}>{item.code}</td>
-              <td style={tdStyle}>{Number(item.unitPrice).toFixed(2)}</td>
-              <td style={tdStyle}>{((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colSpan={4} style={{ ...tdStyle, fontWeight: 700, textAlign: 'right' }}>TOTAL / المجموع</td>
-            <td style={{ ...tdStyle, fontWeight: 700 }}>{orderTotal.toFixed(2)}</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+      </div>
     </>
   )
 }
-
-const thStyle = { border: '1px solid #333', padding: '0.5rem', textAlign: 'right' }
-const tdStyle = { border: '1px solid #333', padding: '0.5rem', textAlign: 'right' }

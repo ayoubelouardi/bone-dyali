@@ -1,0 +1,5 @@
+- [ ] make the color of the book custome.
+- [ ] Make the UI better
+- [ ] Make it Mobile Responsive
+- [ ] too big pdf file
+- [ ]
