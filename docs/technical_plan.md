@@ -209,3 +209,4 @@ bone-dyali/
 - **PO number gaps:** Behavior when a PO is deleted (e.g. keep incrementing vs reusing numbers).
 
 Once these are decided, they can be reflected in `lib/storage.js`, `lib/exportImport.js`, and the relevant React hooks/components, and if needed in an update to this technical plan.
+
