@@ -5,162 +5,210 @@ const mmToPt = (mm) => mm * 2.83465
 const pageWidthPt = mmToPt(105)
 const pageHeightPt = mmToPt(148)
 
-const styles = StyleSheet.create({
-  container: {
-    width: pageWidthPt,
-    height: pageHeightPt,
-    flexDirection: 'column',
-  },
-  // Top yellow-green strip (like binding strip)
-  topStrip: {
-    height: mmToPt(4),
-    backgroundColor: '#c9d46c',
-    borderBottom: '0.5pt solid #b5c258',
-  },
-  // Inner content area with margins
-  inner: {
-    margin: `${mmToPt(6)}pt ${mmToPt(7)}pt ${mmToPt(7)}pt ${mmToPt(7)}pt`,
-    padding: `${mmToPt(4)}pt ${mmToPt(5)}pt`,
-    border: '0.5pt solid #1e3a5f',
-    backgroundColor: '#faf8f5',
-    flex: 1,
-    flexDirection: 'column',
-  },
-  // Header row: Facture info left, Owner box right
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: mmToPt(3),
-  },
-  headerLeft: {
-    flexDirection: 'column',
-  },
-  factureTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#b91c1c',
-    marginBottom: 2,
-  },
-  factureMeta: {
-    fontSize: 9,
-    color: '#1a1a1a',
-    marginTop: 1,
-  },
-  nLabel: {
-    color: '#b91c1c',
-    fontWeight: 'bold',
-  },
-  ownerBox: {
-    backgroundColor: '#e8e6a0',
-    border: '0.5pt solid #d4d078',
-    padding: `${mmToPt(2)}pt ${mmToPt(4)}pt`,
-    minWidth: mmToPt(25),
-    textAlign: 'center',
-  },
-  ownerName: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#2d2d2d',
-  },
-  ownerPhone: {
-    fontSize: 7,
-    fontWeight: 'bold',
-    color: '#2d2d2d',
-    marginTop: 1,
-  },
-  // Client block (RTL)
-  clientBlock: {
-    marginTop: mmToPt(2),
-    marginBottom: mmToPt(2),
-    paddingVertical: mmToPt(1.5),
-    borderBottom: '0.5pt solid #a8c5e0',
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  clientLabel: {
-    fontSize: 8,
-    color: '#1a1a1a',
-  },
-  clientName: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    marginRight: mmToPt(1.5),
-  },
-  clientAddress: {
-    fontSize: 8,
-    color: '#1a1a1a',
-    marginBottom: mmToPt(2),
-    textAlign: 'right',
-  },
-  // Table
-  table: {
-    marginTop: mmToPt(2),
-    flexDirection: 'column',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#5b8fb9',
-  },
-  tableHeaderCell: {
-    padding: `${mmToPt(1.5)}pt ${mmToPt(2)}pt`,
-    border: '0.5pt solid #1e3a5f',
-    textAlign: 'center',
-  },
-  tableHeaderText: {
-    fontSize: 7,
-    color: '#ffffff',
-    fontWeight: 'bold',
-  },
-  tableRow: {
-    flexDirection: 'row',
-  },
-  tableCell: {
-    padding: `${mmToPt(1.5)}pt ${mmToPt(2)}pt`,
-    borderLeft: '0.5pt solid #1e3a5f',
-    borderRight: '0.5pt solid #1e3a5f',
-    borderBottom: '0.5pt solid #a8c5e0',
-    textAlign: 'center',
-  },
-  tableCellText: {
-    fontSize: 8,
-    color: '#1a1a1a',
-  },
-  emptyRowDots: {
-    fontSize: 8,
-    color: '#a8c5e0',
-    textAlign: 'center',
-  },
-  // Column widths (must sum to ~100%)
-  colQty: { width: '12%' },
-  colDesc: { width: '36%' },
-  colCode: { width: '18%' },
-  colPrice: { width: '17%' },
-  colAmount: { width: '17%' },
-  // Footer
-  footer: {
-    marginTop: 'auto',
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingTop: mmToPt(3),
-  },
-  totalLabel: {
-    backgroundColor: '#e8e6a0',
-    border: '0.5pt solid #d4d078',
-    padding: `${mmToPt(1.5)}pt ${mmToPt(3)}pt`,
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  totalAmount: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    marginLeft: mmToPt(2),
-  },
-})
+const DEFAULT_COLOR = '#2563eb'
+
+const hexToRgb = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null
+}
+
+const rgbToHex = (r, g, b) => {
+  return '#' + [r, g, b].map(x => {
+    const hex = Math.max(0, Math.min(255, Math.round(x))).toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }).join('')
+}
+
+const lighten = (hex, amount) => {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  return rgbToHex(
+    rgb.r + (255 - rgb.r) * amount,
+    rgb.g + (255 - rgb.g) * amount,
+    rgb.b + (255 - rgb.b) * amount
+  )
+}
+
+const darken = (hex, amount) => {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  return rgbToHex(
+    rgb.r * (1 - amount),
+    rgb.g * (1 - amount),
+    rgb.b * (1 - amount)
+  )
+}
+
+const getTextColor = (bgColor) => {
+  const rgb = hexToRgb(bgColor)
+  if (!rgb) return '#ffffff'
+  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255
+  return luminance > 0.5 ? '#1a1a1a' : '#ffffff'
+}
+
+const createStyles = (accent) => {
+  const accentDark = darken(accent, 0.3)
+  const accentLight = lighten(accent, 0.4)
+  const accentLighter = lighten(accent, 0.7)
+  const textOnAccent = getTextColor(accent)
+
+  return StyleSheet.create({
+    container: {
+      width: pageWidthPt,
+      height: pageHeightPt,
+      flexDirection: 'column',
+    },
+    topStrip: {
+      height: mmToPt(4),
+      backgroundColor: accent,
+      borderBottom: `0.5pt solid ${accentDark}`,
+    },
+    inner: {
+      margin: `${mmToPt(6)}pt ${mmToPt(7)}pt ${mmToPt(7)}pt ${mmToPt(7)}pt`,
+      padding: `${mmToPt(4)}pt ${mmToPt(5)}pt`,
+      border: `0.5pt solid ${accentDark}`,
+      backgroundColor: '#faf8f5',
+      flex: 1,
+      flexDirection: 'column',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: mmToPt(3),
+    },
+    headerLeft: {
+      flexDirection: 'column',
+    },
+    factureTitle: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: accent,
+      marginBottom: 2,
+    },
+    factureMeta: {
+      fontSize: 9,
+      color: '#1a1a1a',
+      marginTop: 1,
+    },
+    nLabel: {
+      color: accent,
+      fontWeight: 'bold',
+    },
+    ownerBox: {
+      backgroundColor: accentLighter,
+      border: `0.5pt solid ${accentLight}`,
+      padding: `${mmToPt(2)}pt ${mmToPt(4)}pt`,
+      minWidth: mmToPt(25),
+      textAlign: 'center',
+    },
+    ownerName: {
+      fontSize: 9,
+      fontWeight: 'bold',
+      color: '#2d2d2d',
+    },
+    ownerPhone: {
+      fontSize: 7,
+      fontWeight: 'bold',
+      color: '#2d2d2d',
+      marginTop: 1,
+    },
+    clientBlock: {
+      marginTop: mmToPt(2),
+      marginBottom: mmToPt(2),
+      paddingVertical: mmToPt(1.5),
+      borderBottom: `0.5pt solid ${accentLight}`,
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+    },
+    clientLabel: {
+      fontSize: 8,
+      color: '#1a1a1a',
+    },
+    clientName: {
+      fontSize: 9,
+      fontWeight: 'bold',
+      marginRight: mmToPt(1.5),
+    },
+    clientAddress: {
+      fontSize: 8,
+      color: '#1a1a1a',
+      marginBottom: mmToPt(2),
+      textAlign: 'right',
+    },
+    table: {
+      marginTop: mmToPt(2),
+      flexDirection: 'column',
+    },
+    tableHeader: {
+      flexDirection: 'row',
+      backgroundColor: accent,
+    },
+    tableHeaderCell: {
+      padding: `${mmToPt(1.5)}pt ${mmToPt(2)}pt`,
+      border: `0.5pt solid ${accentDark}`,
+      textAlign: 'center',
+    },
+    tableHeaderText: {
+      fontSize: 7,
+      color: textOnAccent,
+      fontWeight: 'bold',
+    },
+    tableRow: {
+      flexDirection: 'row',
+    },
+    tableCell: {
+      padding: `${mmToPt(1.5)}pt ${mmToPt(2)}pt`,
+      borderLeft: `0.5pt solid ${accentDark}`,
+      borderRight: `0.5pt solid ${accentDark}`,
+      borderBottom: `0.5pt solid ${accentLight}`,
+      textAlign: 'center',
+    },
+    tableCellText: {
+      fontSize: 8,
+      color: '#1a1a1a',
+    },
+    emptyRowDots: {
+      fontSize: 8,
+      color: accentLight,
+      textAlign: 'center',
+    },
+    colQty: { width: '12%' },
+    colDesc: { width: '36%' },
+    colCode: { width: '18%' },
+    colPrice: { width: '17%' },
+    colAmount: { width: '17%' },
+    footer: {
+      marginTop: 'auto',
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      paddingTop: mmToPt(3),
+    },
+    totalLabel: {
+      backgroundColor: accentLighter,
+      border: `0.5pt solid ${accentLight}`,
+      padding: `${mmToPt(1.5)}pt ${mmToPt(3)}pt`,
+      fontSize: 9,
+      fontWeight: 'bold',
+    },
+    totalAmount: {
+      fontSize: 11,
+      fontWeight: 'bold',
+      marginLeft: mmToPt(2),
+    },
+  })
+}
 
 export default function FacturePageContent({ book, po }) {
+  const accent = book?.color || DEFAULT_COLOR
+  const styles = createStyles(accent)
+
   const orderTotal = (po?.lineItems || []).reduce(
     (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
     0
@@ -168,12 +216,8 @@ export default function FacturePageContent({ book, po }) {
 
   return (
     <View style={styles.container}>
-      {/* Top binding strip */}
       <View style={styles.topStrip} />
-
-      {/* Main content box */}
       <View style={styles.inner}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.factureTitle}>Facture</Text>
@@ -190,7 +234,6 @@ export default function FacturePageContent({ book, po }) {
           </View>
         </View>
 
-        {/* Client block (RTL) */}
         <View style={styles.clientBlock}>
           <Text style={styles.clientName}>{po.client?.name || '—'}</Text>
           <Text style={styles.clientLabel}>Messrs. / المطلوب من </Text>
@@ -199,9 +242,7 @@ export default function FacturePageContent({ book, po }) {
           <Text style={styles.clientAddress}>{po.client.address}</Text>
         )}
 
-        {/* Table */}
         <View style={styles.table}>
-          {/* Header */}
           <View style={styles.tableHeader}>
             <View style={[styles.tableHeaderCell, styles.colQty]}>
               <Text style={styles.tableHeaderText}>الكمية{'\n'}QTY</Text>
@@ -220,7 +261,6 @@ export default function FacturePageContent({ book, po }) {
             </View>
           </View>
 
-          {/* Body */}
           {Array.from({ length: 8 }, (_, i) => {
             const item = po.lineItems?.[i]
             return (
@@ -267,10 +307,9 @@ export default function FacturePageContent({ book, po }) {
           })}
         </View>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.totalLabel}>المجموع</Text>
-          <Text style={styles.totalAmount}>{orderTotal.toFixed(2)} $</Text>
+          <Text style={styles.totalAmount}>{orderTotal.toFixed(2)} MAD</Text>
         </View>
       </View>
     </View>

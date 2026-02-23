@@ -96,9 +96,9 @@ export default function PurchaseOrder() {
               ))}
             </tbody>
           </table>
-          <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>Order total: {orderTotal.toFixed(2)}</p>
+          <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>Order total: {orderTotal.toFixed(2)} MAD</p>
         </section>
-        <button type="submit" style={primaryBtn}>Save</button>
+        <button type="submit" style={{ ...primaryBtn, background: book.color }}>Save</button>
       </form>
     </div>
   )

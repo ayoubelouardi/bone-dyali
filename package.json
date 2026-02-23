@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "expose": "vite --host"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.3.0",

@@ -2,7 +2,36 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBooks } from '../hooks/useBooks'
 
-const DEFAULT_COLOR = '#6366f1'
+const DEFAULT_COLOR = '#3b5b8c'
+
+const INK_COLORS = [
+  '#9e3a3a', // Red
+  '#b8a54a', // Yellow
+  '#3b5b8c', // Blue
+  '#b87333', // Orange (Red+Yellow)
+  '#3c7a5a', // Green (Yellow+Blue)
+  '#6b5a8b', // Purple (Red+Blue)
+  '#c4a35a', // Yellow-Orange
+  '#a0522d', // Red-Orange
+  '#556b2f', // Yellow-Green
+  '#4a7b7b', // Teal (Blue+Green)
+  '#7b3f4a', // Red-Purple
+  '#5a4a8b', // Blue-Purple
+  '#b76e79', // Pink
+  '#8b7355', // Brown
+  '#6b3030', // Maroon
+  '#6b6b4a', // Olive
+]
+
+const colorSwatchStyle = (isSelected) => ({
+  width: 32,
+  height: 32,
+  borderRadius: 6,
+  cursor: 'pointer',
+  border: isSelected ? '3px solid #1a1a1a' : '1px solid #d1d5db',
+  boxShadow: isSelected ? '0 0 0 2px #fff' : 'none',
+  marginRight: 8,
+})
 
 export default function BookForm() {
   const navigate = useNavigate()
@@ -32,7 +61,19 @@ export default function BookForm() {
         </label>
         <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 500 }}>
           Color
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ height: 40, padding: 2, cursor: 'pointer' }} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: '0.5rem' }}>
+            {INK_COLORS.map((c) => (
+              <div
+                key={c}
+                onClick={() => setColor(c)}
+                style={{
+                  ...colorSwatchStyle(color === c),
+                  backgroundColor: c,
+                }}
+                title={c}
+              />
+            ))}
+          </div>
         </label>
         <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 500 }}>
           Total pages

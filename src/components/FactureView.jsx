@@ -29,7 +29,7 @@ export default function FactureView({ book, po }) {
                   <a
                     href={url}
                     download={fileName}
-                    style={{ padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6, textDecoration: 'none', display: 'inline-block' }}
+                    style={{ padding: '0.5rem 1rem', background: book.color, color: '#fff', border: 0, borderRadius: 6, textDecoration: 'none', display: 'inline-block' }}
                   >
                     Download PDF
                   </a>

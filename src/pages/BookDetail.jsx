@@ -51,7 +51,7 @@ export default function BookDetail() {
           to={`/book/${bookId}/po/new`}
           style={{
             padding: '0.5rem 1rem',
-            background: '#2563eb',
+            background: book.color,
             color: '#fff',
             borderRadius: 6,
             textDecoration: 'none',
@@ -81,6 +81,7 @@ export default function BookDetail() {
                   textDecoration: 'none',
                   color: 'inherit',
                   border: '1px solid #e2e8f0',
+                  borderLeft: `4px solid ${book.color}`,
                 }}
               >
                 PO #{po.poNumber} — {po.date} — {po.client?.name || 'No client'}
