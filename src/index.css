@@ -39,6 +39,41 @@ textarea {
 .no-print {
 }
 
+/* Responsive utilities */
+.mobile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-full-width {
+  width: 100%;
+}
+
+/* Mobile: 320px - 640px */
+@media (max-width: 640px) {
+  body {
+    font-size: 0.9375rem; /* 15px */
+  }
+  
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  h2 {
+    font-size: 1.25rem;
+  }
+  
+  h3 {
+    font-size: 1.125rem;
+  }
+}
+
+/* Tablet: 641px - 1024px */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Tablet-specific styles if needed */
+}
+
 @media print {
   .no-print {
     display: none !important;

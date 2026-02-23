@@ -23,15 +23,17 @@ const INK_COLORS = [
   '#6b6b4a', // Olive
 ]
 
-const colorSwatchStyle = (isSelected) => ({
-  width: 32,
-  height: 32,
-  borderRadius: 6,
-  cursor: 'pointer',
-  border: isSelected ? '3px solid #1a1a1a' : '1px solid #d1d5db',
-  boxShadow: isSelected ? '0 0 0 2px #fff' : 'none',
-  marginRight: 8,
-})
+const getColorSwatchStyle = (isSelected) => {
+  const isMobile = window.innerWidth <= 640
+  return {
+    width: isMobile ? 36 : 40,
+    height: isMobile ? 36 : 40,
+    borderRadius: 6,
+    cursor: 'pointer',
+    border: isSelected ? '3px solid #1a1a1a' : '1px solid #d1d5db',
+    boxShadow: isSelected ? '0 0 0 2px #fff' : 'none',
+  }
+}
 
 export default function BookForm() {
   const navigate = useNavigate()
@@ -61,13 +63,13 @@ export default function BookForm() {
         </label>
         <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 500 }}>
           Color
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: '0.5rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: '0.5rem' }}>
             {INK_COLORS.map((c) => (
               <div
                 key={c}
                 onClick={() => setColor(c)}
                 style={{
-                  ...colorSwatchStyle(color === c),
+                  ...getColorSwatchStyle(color === c),
                   backgroundColor: c,
                 }}
                 title={c}
@@ -79,9 +81,9 @@ export default function BookForm() {
           Total pages
           <input type="number" min={1} value={totalPages} onChange={(e) => setTotalPages(Number(e.target.value) || 1)} style={{ display: 'block', width: '100%', padding: '0.5rem', marginTop: '0.25rem' }} />
         </label>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-          <button type="submit" style={{ padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6 }}>Save</button>
-          <button type="button" onClick={() => navigate(-1)} style={{ padding: '0.5rem 1rem', background: '#e2e8f0', border: 0, borderRadius: 6 }}>Cancel</button>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+          <button type="submit" style={{ padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6, minHeight: 44 }}>Save</button>
+          <button type="button" onClick={() => navigate(-1)} style={{ padding: '0.5rem 1rem', background: '#e2e8f0', border: 0, borderRadius: 6, minHeight: 44 }}>Cancel</button>
         </div>
       </form>
     </div>

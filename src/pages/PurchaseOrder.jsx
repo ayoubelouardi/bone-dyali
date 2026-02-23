@@ -68,34 +68,36 @@ export default function PurchaseOrder() {
           <label style={labelStyle}>Date <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></label>
         </section>
         <section style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h3 style={{ margin: 0 }}>Line items</h3>
             <button type="button" onClick={addLine} style={secondaryBtn}>+ Add line</button>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem' }}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Qty</th>
-                <th style={thStyle}>Description</th>
-                <th style={thStyle}>Code</th>
-                <th style={thStyle}>Unit price</th>
-                <th style={thStyle}>Amount</th>
-                <th style={thStyle}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.map((item, i) => (
-                <tr key={i}>
-                  <td><input type="number" min={0} value={item.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} style={cellInput} /></td>
-                  <td><input type="text" value={item.description} onChange={(e) => updateLine(i, 'description', e.target.value)} style={cellInput} /></td>
-                  <td><input type="text" value={item.code} onChange={(e) => updateLine(i, 'code', e.target.value)} style={cellInput} /></td>
-                  <td><input type="number" min={0} step="0.01" value={item.unitPrice} onChange={(e) => updateLine(i, 'unitPrice', e.target.value)} style={cellInput} /></td>
-                  <td>{((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}</td>
-                  <td><button type="button" onClick={() => removeLine(i)} style={{ background: 'none', border: 0, color: '#b91c1c' }}>Remove</button></td>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginTop: '0.5rem' }}>
+            <table style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Qty</th>
+                  <th style={thStyle}>Description</th>
+                  <th style={thStyle}>Code</th>
+                  <th style={thStyle}>Unit price</th>
+                  <th style={thStyle}>Amount</th>
+                  <th style={thStyle}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {lineItems.map((item, i) => (
+                  <tr key={i}>
+                    <td><input type="number" min={0} value={item.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} style={cellInput} /></td>
+                    <td><input type="text" value={item.description} onChange={(e) => updateLine(i, 'description', e.target.value)} style={cellInput} /></td>
+                    <td><input type="text" value={item.code} onChange={(e) => updateLine(i, 'code', e.target.value)} style={cellInput} /></td>
+                    <td><input type="number" min={0} step="0.01" value={item.unitPrice} onChange={(e) => updateLine(i, 'unitPrice', e.target.value)} style={cellInput} /></td>
+                    <td>{((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}</td>
+                    <td><button type="button" onClick={() => removeLine(i)} style={removeBtn}>Remove</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>Order total: {orderTotal.toFixed(2)} MAD</p>
         </section>
         <button type="submit" style={{ ...primaryBtn, background: book.color }}>Save</button>
@@ -105,8 +107,9 @@ export default function PurchaseOrder() {
 }
 
 const labelStyle = { display: 'block', marginBottom: '0.5rem' }
-const inputStyle = { display: 'block', padding: '0.5rem', width: '100%', maxWidth: 400 }
+const inputStyle = { display: 'block', padding: '0.5rem', width: '100%', maxWidth: 400, minHeight: 44 }
 const thStyle = { textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }
-const cellInput = { width: '100%', padding: '0.35rem' }
-const primaryBtn = { padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6 }
-const secondaryBtn = { padding: '0.35rem 0.75rem', background: '#e2e8f0', border: 0, borderRadius: 6 }
+const cellInput = { width: '100%', padding: '0.5rem', minHeight: 44 }
+const primaryBtn = { padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6, minHeight: 44 }
+const secondaryBtn = { padding: '0.5rem 0.75rem', background: '#e2e8f0', border: 0, borderRadius: 6, minHeight: 44 }
+const removeBtn = { background: 'none', border: 0, color: '#b91c1c', padding: '0.5rem', minWidth: 44, minHeight: 44 }

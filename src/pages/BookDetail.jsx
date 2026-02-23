@@ -33,7 +33,7 @@ export default function BookDetail() {
 
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <Link to="/" style={{ color: '#64748b' }}>← Back</Link>
         <div
           style={{
@@ -56,11 +56,14 @@ export default function BookDetail() {
             borderRadius: 6,
             textDecoration: 'none',
             fontWeight: 600,
+            minHeight: 44,
+            display: 'inline-flex',
+            alignItems: 'center',
           }}
         >
           New PO
         </Link>
-        <button type="button" onClick={handleDelete} style={{ padding: '0.5rem 1rem', background: '#fef2f2', color: '#b91c1c', border: 0, borderRadius: 6 }}>
+        <button type="button" onClick={handleDelete} style={{ padding: '0.5rem 1rem', background: '#fef2f2', color: '#b91c1c', border: 0, borderRadius: 6, minHeight: 44 }}>
           Delete book
         </button>
       </div>

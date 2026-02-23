@@ -23,20 +23,20 @@ export default function FactureView({ book, po }) {
         return (
           <>
             {/* Toolbar */}
-            <div className="no-print" style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="no-print" style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
               {!loading && url ? (
                 <>
                   <a
                     href={url}
                     download={fileName}
-                    style={{ padding: '0.5rem 1rem', background: book.color, color: '#fff', border: 0, borderRadius: 6, textDecoration: 'none', display: 'inline-block' }}
+                    style={{ padding: '0.5rem 1rem', background: book.color, color: '#fff', border: 0, borderRadius: 6, textDecoration: 'none', display: 'inline-block', minHeight: 44 }}
                   >
                     Download PDF
                   </a>
                   <button
                     type="button"
                     onClick={() => setIframeKey(k => k + 1)}
-                    style={{ padding: '0.5rem 1rem', background: '#64748b', color: '#fff', border: 0, borderRadius: 6 }}
+                    style={{ padding: '0.5rem 1rem', background: '#64748b', color: '#fff', border: 0, borderRadius: 6, minHeight: 44 }}
                   >
                     Refresh Preview
                   </button>
@@ -52,7 +52,7 @@ export default function FactureView({ book, po }) {
             <div
               style={{
                 width: '100%',
-                maxWidth: '420px',
+                maxWidth: window.innerWidth <= 768 ? '100%' : '420px',
                 margin: '0 auto',
                 border: '1px solid #d1d5db',
                 borderRadius: 8,

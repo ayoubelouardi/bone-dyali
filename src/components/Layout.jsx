@@ -1,6 +1,19 @@
 import { Outlet, Link } from 'react-router-dom'
+import { useEffect } from 'react'
 
 export default function Layout() {
+  useEffect(() => {
+    const updatePadding = () => {
+      const main = document.querySelector('main')
+      if (main) {
+        main.style.padding = window.innerWidth <= 640 ? '0.75rem' : '1.5rem'
+      }
+    }
+    updatePadding()
+    window.addEventListener('resize', updatePadding)
+    return () => window.removeEventListener('resize', updatePadding)
+  }, [])
+
   return (
     <div className="no-print">
       <header style={headerStyle}>
@@ -14,7 +27,7 @@ export default function Layout() {
 }
 
 const headerStyle = {
-  padding: '0.75rem 1.5rem',
+  padding: '0.75rem 1rem',
   background: '#1e293b',
   color: '#f8fafc',
 }

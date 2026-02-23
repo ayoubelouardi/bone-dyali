@@ -4,6 +4,19 @@ function poKey(bookId) {
   return `bone_dyali_po_${bookId}`
 }
 
+// Fallback for crypto.randomUUID in older browsers or HTTP contexts
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback implementation
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 export function getBooks() {
   try {
     const raw = localStorage.getItem(BOOKS_KEY)
@@ -14,7 +27,14 @@ export function getBooks() {
 }
 
 export function saveBooks(books) {
-  localStorage.setItem(BOOKS_KEY, JSON.stringify(books))
+  try {
+    localStorage.setItem(BOOKS_KEY, JSON.stringify(books))
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      alert('Storage quota exceeded. Please delete some books or export your data as backup.')
+    }
+    throw e
+  }
 }
 
 export function getPurchaseOrders(bookId) {
@@ -27,12 +47,19 @@ export function getPurchaseOrders(bookId) {
 }
 
 export function savePurchaseOrders(bookId, orders) {
-  localStorage.setItem(poKey(bookId), JSON.stringify(orders))
+  try {
+    localStorage.setItem(poKey(bookId), JSON.stringify(orders))
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      alert('Storage quota exceeded. Please delete some purchase orders or export your data as backup.')
+    }
+    throw e
+  }
 }
 
 export function createBook({ name, ownerName, color, totalPages }) {
   const books = getBooks()
-  const id = crypto.randomUUID()
+  const id = generateUUID()
   const book = {
     id,
     name: name.trim() || 'Unnamed book',
@@ -73,7 +100,7 @@ export function createPurchaseOrder(bookId, { client, lineItems, date }) {
   if (!book) return null
   const orders = getPurchaseOrders(bookId)
   const poNumber = book.nextPoNumber
-  const id = crypto.randomUUID()
+  const id = generateUUID()
   const po = {
     id,
     bookId,
