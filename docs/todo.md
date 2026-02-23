@@ -5,8 +5,7 @@
 - [x] Add Edit the PO.
 - [x] Add Lock the Saved PO.
 - [x] Custome Date entry.
-
-- [ ] Add Analytics for each Book. 
+- [x] Add Analytics for each Book. 
 
 - [ ] Add Search/Filter POs in a book
 - [ ] Add Phone number field to book

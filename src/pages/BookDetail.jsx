@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useBooks } from '../hooks/useBooks'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
@@ -9,6 +10,28 @@ export default function BookDetail() {
   const { books, removeBook } = useBooks()
   const { orders } = usePurchaseOrders(bookId)
   const book = bookId === 'new' ? null : getBook(bookId)
+
+  // Analytics
+  const analytics = useMemo(() => {
+    if (!orders.length) return { totalRevenue: 0, totalQuantity: 0 }
+    
+    return orders.reduce((acc, po) => {
+      const poTotal = po.lineItems.reduce((sum, item) => {
+        const qty = Number(item.quantity) || 0
+        const price = Number(item.unitPrice) || 0
+        return sum + qty * price
+      }, 0)
+      
+      const poQty = po.lineItems.reduce((sum, item) => {
+        return sum + (Number(item.quantity) || 0)
+      }, 0)
+      
+      return {
+        totalRevenue: acc.totalRevenue + poTotal,
+        totalQuantity: acc.totalQuantity + poQty,
+      }
+    }, { totalRevenue: 0, totalQuantity: 0 })
+  }, [orders])
 
   if (bookId === 'new') {
     navigate('/book/new', { replace: true })
@@ -67,6 +90,27 @@ export default function BookDetail() {
           Delete book
         </button>
       </div>
+
+      {orders.length > 0 && (
+        <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f9fafb', borderRadius: 6, display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: '#374151' }}>
+              {analytics.totalRevenue.toFixed(2)} MAD
+            </div>
+            <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>
+              Total Revenue
+            </div>
+          </div>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: '#374151' }}>
+              {analytics.totalQuantity.toLocaleString()}
+            </div>
+            <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>
+              Total Quantity Sold
+            </div>
+          </div>
+        </div>
+      )}
       <h2 style={{ marginTop: 0 }}>Purchase orders</h2>
       {orders.length === 0 ? (
         <p style={{ color: '#64748b' }}>No purchase orders yet.</p>
