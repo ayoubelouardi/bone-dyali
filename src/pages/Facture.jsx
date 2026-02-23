@@ -1,8 +1,14 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Edit3, Lock, Unlock } from 'lucide-react'
 import { getBook, getPurchaseOrder } from '../lib/storage'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
 import FactureView from '../components/FactureView'
 import { useState, useEffect } from 'react'
+import Button from '../components/ui/Button'
+import Badge from '../components/ui/Badge'
+import Breadcrumbs from '../components/ui/Breadcrumbs'
+import Card from '../components/ui/Card'
+import { useToast } from '../components/ui/Toast'
 
 export default function Facture() {
   const { bookId, poId } = useParams()
@@ -10,7 +16,7 @@ export default function Facture() {
   const book = getBook(bookId)
   const { toggleLock, getOrder } = usePurchaseOrders(bookId)
   const [po, setPO] = useState(getPurchaseOrder(bookId, poId))
-  const [message, setMessage] = useState('')
+  const toast = useToast()
 
   // Refresh PO data when it changes
   useEffect(() => {
@@ -18,90 +24,79 @@ export default function Facture() {
   }, [bookId, poId])
 
   if (!book || !po) {
-    return <p>Invoice not found.</p>
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">Invoice not found.</p>
+        <Link to="/" className="text-blue-600 hover:text-blue-700">Back to Dashboard</Link>
+      </div>
+    )
   }
 
   const handleToggleLock = () => {
-    const confirmMessage = po.locked 
-      ? 'Unlock this purchase order? It will become editable.' 
-      : 'Lock this purchase order? It cannot be edited while locked.'
-
     const updated = toggleLock(poId)
     if (updated) {
       setPO(updated)
-      setMessage(`PO #${po.poNumber} ${updated.locked ? 'locked' : 'unlocked'} successfully.`)
-    } else {
-      setMessage(confirmMessage)
+      toast.success(`PO #${po.poNumber} ${updated.locked ? 'locked' : 'unlocked'} successfully`)
     }
   }
 
   const handleEdit = () => {
     if (po.locked) {
-      setMessage('This purchase order is locked. Please unlock it first to edit.')
+      toast.warning('This purchase order is locked. Please unlock it first to edit.')
       return
     }
     navigate(`/book/${bookId}/po/${poId}/edit`)
   }
 
+  const breadcrumbs = [
+    { label: 'Dashboard', href: '/' },
+    { label: book.name, href: `/book/${bookId}` },
+    { label: `PO #${po.poNumber}` },
+  ]
+
   return (
     <>
-      {message && (
-        <div className="no-print" style={{ marginBottom: '0.75rem', padding: '0.75rem 1rem', border: '1px solid #e2e8f0', background: '#fff', color: '#334155', borderRadius: 6 }}>
-          {message}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <Breadcrumbs items={breadcrumbs} />
+
+        {/* Actions Bar */}
+        <div className="no-print flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+          <Link 
+            to={`/book/${bookId}`} 
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Archive
+          </Link>
+          
+          <div className="flex-1" />
+          
+          {po.locked && (
+            <Badge variant="locked" size="md" icon={Lock}>Locked</Badge>
+          )}
+          
+          <div className="flex gap-2">
+            <Button 
+              variant={po.locked ? 'secondary' : 'primary'}
+              icon={Edit3} 
+              onClick={handleEdit}
+              disabled={po.locked}
+              style={!po.locked ? { backgroundColor: book.color } : {}}
+            >
+              Edit
+            </Button>
+            <Button 
+              variant={po.locked ? 'success' : 'secondary'}
+              icon={po.locked ? Unlock : Lock} 
+              onClick={handleToggleLock}
+            >
+              {po.locked ? 'Unlock' : 'Lock'}
+            </Button>
+          </div>
         </div>
-      )}
-      <div className="no-print" style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <Link to={`/book/${bookId}`} style={{ color: '#64748b' }}>← Back to archive</Link>
-        {po.locked && (
-          <span style={{ 
-            padding: '0.25rem 0.5rem', 
-            background: '#fef3c7', 
-            color: '#92400e', 
-            borderRadius: 4, 
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.25rem'
-          }}>
-            🔒 Locked
-          </span>
-        )}
-        <div style={{ flex: 1 }}></div>
-        <button
-          type="button"
-          onClick={handleEdit}
-          style={{
-            padding: '0.5rem 1rem',
-            background: po.locked ? '#e5e7eb' : book.color,
-            color: po.locked ? '#9ca3af' : '#fff',
-            border: 0,
-            borderRadius: 6,
-            minHeight: 44,
-            cursor: po.locked ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-          }}
-          disabled={po.locked}
-          title={po.locked ? 'Unlock to edit' : 'Edit this purchase order'}
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={handleToggleLock}
-          style={{
-            padding: '0.5rem 1rem',
-            background: po.locked ? '#dcfce7' : '#fef2f2',
-            color: po.locked ? '#166534' : '#991b1b',
-            border: 0,
-            borderRadius: 6,
-            minHeight: 44,
-            fontWeight: 600,
-          }}
-        >
-          {po.locked ? '🔓 Unlock' : '🔒 Lock'}
-        </button>
       </div>
+
+      {/* Invoice View */}
       <FactureView book={book} po={po} />
     </>
   )

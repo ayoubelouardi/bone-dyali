@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, Check } from 'lucide-react'
 import { useBooks } from '../hooks/useBooks'
+import Card from '../components/ui/Card'
+import Button from '../components/ui/Button'
+import Input from '../components/ui/Input'
 
 const DEFAULT_COLOR = '#3b5b8c'
 
@@ -23,18 +27,6 @@ const INK_COLORS = [
   '#6b6b4a', // Olive
 ]
 
-const getColorSwatchStyle = (isSelected) => {
-  const isMobile = window.innerWidth <= 640
-  return {
-    width: isMobile ? 36 : 40,
-    height: isMobile ? 36 : 40,
-    borderRadius: 6,
-    cursor: 'pointer',
-    border: isSelected ? '3px solid #1a1a1a' : '1px solid #d1d5db',
-    boxShadow: isSelected ? '0 0 0 2px #fff' : 'none',
-  }
-}
-
 export default function BookForm() {
   const navigate = useNavigate()
   const { addBook } = useBooks()
@@ -50,42 +42,77 @@ export default function BookForm() {
   }
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Create Book</h1>
-      <form onSubmit={handleSubmit} style={{ maxWidth: 400 }}>
-        <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 500 }}>
-          Book name
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 2024 Orders" required style={{ display: 'block', width: '100%', padding: '0.5rem', marginTop: '0.25rem' }} />
-        </label>
-        <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 500 }}>
-          Owner name (on invoice)
-          <input type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Company / owner name" style={{ display: 'block', width: '100%', padding: '0.5rem', marginTop: '0.25rem' }} />
-        </label>
-        <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 500 }}>
-          Color
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: '0.5rem' }}>
-            {INK_COLORS.map((c) => (
-              <div
-                key={c}
-                onClick={() => setColor(c)}
-                style={{
-                  ...getColorSwatchStyle(color === c),
-                  backgroundColor: c,
-                }}
-                title={c}
-              />
-            ))}
+    <div className="max-w-md mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={() => navigate(-1)}>
+          Back
+        </Button>
+      </div>
+
+      <Card>
+        <h1 className="text-xl font-bold text-gray-900 mb-6">Create New Book</h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Input
+            label="Book name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. 2024 Orders"
+            required
+          />
+          
+          <Input
+            label="Owner name (on invoice)"
+            value={ownerName}
+            onChange={(e) => setOwnerName(e.target.value)}
+            placeholder="Company / owner name"
+          />
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Color
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {INK_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={`
+                    w-10 h-10 rounded-lg transition-all duration-150
+                    ${color === c 
+                      ? 'ring-2 ring-offset-2 ring-gray-900 scale-110' 
+                      : 'hover:scale-105'
+                    }
+                  `}
+                  style={{ backgroundColor: c }}
+                  title={c}
+                >
+                  {color === c && <Check className="w-5 h-5 text-white mx-auto" />}
+                </button>
+              ))}
+            </div>
           </div>
-        </label>
-        <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 500 }}>
-          Total pages
-          <input type="number" min={1} value={totalPages} onChange={(e) => setTotalPages(Number(e.target.value) || 1)} style={{ display: 'block', width: '100%', padding: '0.5rem', marginTop: '0.25rem' }} />
-        </label>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-          <button type="submit" style={{ padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6, minHeight: 44 }}>Save</button>
-          <button type="button" onClick={() => navigate(-1)} style={{ padding: '0.5rem 1rem', background: '#e2e8f0', border: 0, borderRadius: 6, minHeight: 44 }}>Cancel</button>
-        </div>
-      </form>
+          
+          <Input
+            label="Total pages"
+            type="number"
+            min={1}
+            value={totalPages}
+            onChange={(e) => setTotalPages(Number(e.target.value) || 1)}
+          />
+          
+          <div className="flex gap-3 pt-4">
+            <Button type="submit" variant="primary">
+              Create Book
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </Card>
     </div>
   )
 }

@@ -1,7 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react'
 import { getBook } from '../lib/storage'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
+import Card from '../components/ui/Card'
+import Button from '../components/ui/Button'
+import Input from '../components/ui/Input'
+import Breadcrumbs from '../components/ui/Breadcrumbs'
+import Badge from '../components/ui/Badge'
 
 const emptyLine = () => ({ description: '', quantity: 0, unitPrice: 0, code: '' })
 
@@ -82,78 +88,165 @@ export default function PurchaseOrder() {
 
   if (!book) {
     return (
-      <div>
-        <p>Book not found.</p>
-        <button type="button" onClick={() => navigate('/')}>Back</button>
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">Book not found.</p>
+        <Button variant="secondary" onClick={() => navigate('/')}>Back to Dashboard</Button>
       </div>
     )
   }
 
+  const breadcrumbs = [
+    { label: 'Dashboard', href: '/' },
+    { label: book.name, href: `/book/${bookId}` },
+    { label: isNew ? 'New PO' : `PO #${existingPO?.poNumber}` },
+  ]
+
   return (
-    <div className="no-print">
+    <div className="no-print max-w-3xl mx-auto">
+      <Breadcrumbs items={breadcrumbs} />
+
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="ghost" size="sm" icon={ArrowLeft} onClick={() => navigate(isNew ? `/book/${bookId}` : `/book/${bookId}/po/${poId}`)}>
+          Back
+        </Button>
+      </div>
+
       {errorMessage && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', borderRadius: 6 }}>
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
           {errorMessage}
         </div>
       )}
-      <div style={{ marginBottom: '1rem' }}>
-        <button type="button" onClick={() => navigate(isNew ? `/book/${bookId}` : `/book/${bookId}/po/${poId}`)} style={{ background: 'none', border: 0, color: '#64748b' }}>← Back</button>
-      </div>
-      <h1 style={{ marginTop: 0 }}>
-        {isNew ? `New Purchase Order — ${book.name}` : `Edit Purchase Order #${existingPO?.poNumber} — ${book.name}`}
-      </h1>
-      <form onSubmit={handleSubmit}>
-        <section style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ marginTop: 0 }}>Client</h3>
-          <label style={labelStyle}>Name <input type="text" value={client.name} onChange={(e) => setClient((c) => ({ ...c, name: e.target.value }))} style={inputStyle} /></label>
-          <label style={labelStyle}>Address <input type="text" value={client.address} onChange={(e) => setClient((c) => ({ ...c, address: e.target.value }))} style={inputStyle} /></label>
-          <label style={labelStyle}>Date <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></label>
-        </section>
-        <section style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <h3 style={{ margin: 0 }}>Line items</h3>
-            <button type="button" onClick={addLine} style={secondaryBtn}>+ Add line</button>
+
+      <Card>
+        <h1 className="text-xl font-bold text-gray-900 mb-6">
+          {isNew ? 'New Purchase Order' : `Edit Purchase Order #${existingPO?.poNumber}`}
+        </h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Client Section */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Client Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Client Name"
+                value={client.name}
+                onChange={(e) => setClient((c) => ({ ...c, name: e.target.value }))}
+                placeholder="Enter client name"
+              />
+              <Input
+                label="Date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <div className="mt-4">
+              <Input
+                label="Address"
+                value={client.address}
+                onChange={(e) => setClient((c) => ({ ...c, address: e.target.value }))}
+                placeholder="Enter client address"
+              />
+            </div>
           </div>
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginTop: '0.5rem' }}>
-            <table style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Qty</th>
-                  <th style={thStyle}>Description</th>
-                  <th style={thStyle}>Code</th>
-                  <th style={thStyle}>Unit price</th>
-                  <th style={thStyle}>Amount</th>
-                  <th style={thStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {lineItems.map((item, i) => (
-                  <tr key={i}>
-                    <td><input type="number" min={0} value={item.quantity} onChange={(e) => updateLine(i, 'quantity', e.target.value)} style={cellInput} /></td>
-                    <td><input type="text" value={item.description} onChange={(e) => updateLine(i, 'description', e.target.value)} style={cellInput} /></td>
-                    <td><input type="text" value={item.code} onChange={(e) => updateLine(i, 'code', e.target.value)} style={cellInput} /></td>
-                    <td><input type="number" min={0} step="0.01" value={item.unitPrice} onChange={(e) => updateLine(i, 'unitPrice', e.target.value)} style={cellInput} /></td>
-                    <td>{((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}</td>
-                    <td><button type="button" onClick={() => removeLine(i)} style={removeBtn}>Remove</button></td>
+
+          {/* Line Items Section */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Line Items</h3>
+              <Button type="button" variant="secondary" size="sm" icon={Plus} onClick={addLine}>
+                Add Line
+              </Button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-20">Qty</th>
+                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500">Description</th>
+                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-24">Code</th>
+                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-28">Unit Price</th>
+                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-24">Amount</th>
+                    <th className="w-12"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {lineItems.map((item, i) => (
+                    <tr key={i} className="border-b border-gray-100">
+                      <td className="py-2 px-2">
+                        <input
+                          type="number"
+                          min={0}
+                          value={item.quantity}
+                          onChange={(e) => updateLine(i, 'quantity', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input
+                          type="text"
+                          value={item.description}
+                          onChange={(e) => updateLine(i, 'description', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Item description"
+                        />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input
+                          type="text"
+                          value={item.code}
+                          onChange={(e) => updateLine(i, 'code', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Code"
+                        />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={item.unitPrice}
+                          onChange={(e) => updateLine(i, 'unitPrice', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </td>
+                      <td className="py-2 px-2 text-gray-600 font-medium">
+                        {((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}
+                      </td>
+                      <td className="py-2 px-2">
+                        <button
+                          type="button"
+                          onClick={() => removeLine(i)}
+                          disabled={lineItems.length <= 1}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="flex justify-end mt-4 p-4 bg-gray-50 rounded-lg">
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Order Total</div>
+                <div className="text-2xl font-bold text-gray-900">{orderTotal.toFixed(2)} MAD</div>
+              </div>
+            </div>
           </div>
-          <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>Order total: {orderTotal.toFixed(2)} MAD</p>
-        </section>
-        <button type="submit" style={{ ...primaryBtn, background: book.color }}>
-          {isNew ? 'Save' : 'Update'}
-        </button>
-      </form>
+
+          {/* Submit Button */}
+          <div className="flex gap-3 pt-4 border-t border-gray-100">
+            <Button type="submit" icon={Save}>
+              {isNew ? 'Save Purchase Order' : 'Update Purchase Order'}
+            </Button>
+          </div>
+        </form>
+      </Card>
     </div>
   )
 }
-
-const labelStyle = { display: 'block', marginBottom: '0.5rem' }
-const inputStyle = { display: 'block', padding: '0.5rem', width: '100%', maxWidth: 400, minHeight: 44 }
-const thStyle = { textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }
-const cellInput = { width: '100%', padding: '0.5rem', minHeight: 44 }
-const primaryBtn = { padding: '0.5rem 1rem', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6, minHeight: 44 }
-const secondaryBtn = { padding: '0.5rem 0.75rem', background: '#e2e8f0', border: 0, borderRadius: 6, minHeight: 44 }
-const removeBtn = { background: 'none', border: 0, color: '#b91c1c', padding: '0.5rem', minWidth: 44, minHeight: 44 }

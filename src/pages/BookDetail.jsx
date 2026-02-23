@@ -1,15 +1,24 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Plus, Trash2, Lock, Unlock, Edit3, FileText, Calendar } from 'lucide-react'
 import { useBooks } from '../hooks/useBooks'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
 import { getBook } from '../lib/storage'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import Badge from '../components/ui/Badge'
+import Breadcrumbs from '../components/ui/Breadcrumbs'
+import { ConfirmDialog } from '../components/ui/Modal'
+import { useToast } from '../components/ui/Toast'
 
 export default function BookDetail() {
   const { bookId } = useParams()
   const navigate = useNavigate()
-  const { books, removeBook } = useBooks()
+  const { removeBook } = useBooks()
   const { orders } = usePurchaseOrders(bookId)
   const book = bookId === 'new' ? null : getBook(bookId)
+  const toast = useToast()
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   // Analytics
   const analytics = useMemo(() => {
@@ -40,127 +49,165 @@ export default function BookDetail() {
 
   if (!book) {
     return (
-      <div>
-        <p>Book not found.</p>
-        <Link to="/">Back to dashboard</Link>
+      <div className="text-center py-12">
+        <p className="text-gray-500 mb-4">Book not found.</p>
+        <Link to="/" className="text-blue-600 hover:text-blue-700">Back to dashboard</Link>
       </div>
     )
   }
 
   const handleDelete = () => {
-    if (confirm('Delete this book and all its purchase orders?')) {
-      removeBook(book.id)
-      navigate('/')
-    }
+    setShowDeleteDialog(true)
   }
+
+  const confirmDelete = () => {
+    removeBook(book.id)
+    navigate('/')
+    toast.success('Book deleted successfully')
+  }
+
+  const breadcrumbs = [
+    { label: 'Dashboard', href: '/' },
+    { label: book.name },
+  ]
 
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link to="/" style={{ color: '#64748b' }}>← Back</Link>
-        <div
-          style={{
-            flex: 1,
-            padding: '1rem',
-            background: '#fff',
-            borderRadius: 8,
-            borderLeft: `4px solid ${book.color}`,
-          }}
-        >
-          <strong>{book.name}</strong>
-          {book.ownerName && <span style={{ color: '#64748b', marginLeft: '0.5rem' }}>— {book.ownerName}</span>}
+      <Breadcrumbs items={breadcrumbs} />
+
+      {/* Header */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }} className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div 
+            className="w-3 h-12 rounded-full"
+            style={{ width: 12, borderRadius: 9999, backgroundColor: book.color }}
+          />
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827', margin: 0 }} className="text-2xl font-bold text-gray-900">{book.name}</h1>
+            {book.ownerName && (
+              <p style={{ color: '#6b7280' }} className="text-gray-500">{book.ownerName}</p>
+            )}
+          </div>
         </div>
-        <Link
-          to={`/book/${bookId}/po/new`}
-          style={{
-            padding: '0.5rem 1rem',
-            background: book.color,
-            color: '#fff',
-            borderRadius: 6,
-            textDecoration: 'none',
-            fontWeight: 600,
-            minHeight: 44,
-            display: 'inline-flex',
-            alignItems: 'center',
-          }}
-        >
-          New PO
-        </Link>
-        <button type="button" onClick={handleDelete} style={{ padding: '0.5rem 1rem', background: '#fef2f2', color: '#b91c1c', border: 0, borderRadius: 6, minHeight: 44 }}>
-          Delete book
-        </button>
+        
+        <div style={{ flex: 1 }} />
+        
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <Link to={`/book/${bookId}/po/new`}>
+            <Button variant="primary" icon={Plus}>
+              New PO
+            </Button>
+          </Link>
+          <Button variant="danger" icon={Trash2} onClick={handleDelete}>
+            Delete
+          </Button>
+        </div>
       </div>
 
+      {/* Analytics */}
       {orders.length > 0 && (
-        <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f9fafb', borderRadius: 6, display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: '#374151' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <Card className="text-center">
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827' }}>
               {analytics.totalRevenue.toFixed(2)} MAD
             </div>
-            <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>
-              Total Revenue
-            </div>
-          </div>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: '#374151' }}>
+            <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>Total Revenue</div>
+          </Card>
+          <Card className="text-center">
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111827' }}>
               {analytics.totalQuantity.toLocaleString()}
             </div>
-            <div style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>
-              Total Quantity Sold
-            </div>
-          </div>
+            <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>Total Quantity Sold</div>
+          </Card>
         </div>
       )}
-      <h2 style={{ marginTop: 0 }}>Purchase orders</h2>
+
+      {/* PO List */}
+      <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#111827', marginTop: 0, marginBottom: '1rem' }} className="text-lg font-semibold text-gray-900 mb-4">Purchase Orders</h2>
+      
       {orders.length === 0 ? (
-        <p style={{ color: '#64748b' }}>No purchase orders yet.</p>
+        <Card style={{ textAlign: 'center', padding: '3rem' }} className="text-center py-12">
+          <div style={{ color: '#9ca3af', marginBottom: '1rem' }}>
+            <FileText style={{ width: 48, height: 48, margin: '0 auto' }} className="w-12 h-12 mx-auto" />
+          </div>
+          <h3 style={{ color: '#111827', fontWeight: 500, marginBottom: '0.5rem' }} className="text-gray-900 font-medium mb-2">No purchase orders yet</h3>
+          <p style={{ color: '#6b7280', marginBottom: '1.5rem' }} className="text-gray-500 mb-6">Create your first purchase order for this book</p>
+          <Link to={`/book/${bookId}/po/new`}>
+            <Button icon={Plus}>Create Purchase Order</Button>
+          </Link>
+        </Card>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }} className="space-y-3 stagger-children">
           {orders.map((po) => (
-            <li key={po.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
-              <Link
-                to={`/book/${bookId}/po/${po.id}`}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.75rem 1rem',
-                  background: po.locked ? '#f9fafb' : '#fff',
-                  borderRadius: 6,
-                  textDecoration: 'none',
-                  color: po.locked ? '#6b7280' : 'inherit',
-                  border: '1px solid #e2e8f0',
-                  borderLeft: `4px solid ${book.color}`,
+            <Link
+              key={po.id}
+              to={`/book/${bookId}/po/${po.id}`}
+              style={{ display: 'block', textDecoration: 'none' }}
+              className="block group"
+            >
+              <Card 
+                hover 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '1rem',
+                  opacity: po.locked ? 0.75 : 1,
                 }}
+                className={`
+                  flex items-center gap-4
+                  ${po.locked ? 'opacity-75' : ''}
+                `}
               >
-                {po.locked && <span style={{ fontSize: '1rem' }}>🔒</span>}
-                <span>PO #{po.poNumber} — {po.date} — {po.client?.name || 'No client'}</span>
-              </Link>
-              <Link
-                to={`/book/${bookId}/po/${po.id}/edit`}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  background: po.locked ? '#e5e7eb' : '#f3f4f6',
-                  color: po.locked ? '#9ca3af' : '#374151',
-                  borderRadius: 6,
-                  textDecoration: 'none',
-                  minHeight: 44,
-                  display: 'flex',
-                  alignItems: 'center',
-                  fontWeight: 500,
-                  fontSize: '0.875rem',
-                  cursor: po.locked ? 'not-allowed' : 'pointer',
-                  pointerEvents: po.locked ? 'none' : 'auto',
-                }}
-                title={po.locked ? 'Unlock to edit' : 'Edit this purchase order'}
-              >
-                Edit
-              </Link>
-            </li>
+                <div 
+                  style={{ width: 4, borderRadius: 9999, flexShrink: 0, minHeight: 48, backgroundColor: book.color }}
+                  className="w-1 h-12 rounded-full flex-shrink-0"
+                />
+                
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: 600, color: '#111827' }}>
+                      PO #{po.poNumber}
+                    </span>
+                    {po.locked && (
+                      <Badge variant="locked" size="sm" icon={Lock}>Locked</Badge>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Calendar style={{ width: 14, height: 14 }} className="w-3.5 h-3.5" />
+                      {po.date}
+                    </span>
+                    <span>{po.client?.name || 'No client'}</span>
+                  </div>
+                </div>
+
+                {!po.locked && (
+                  <Link
+                    to={`/book/${bookId}/po/${po.id}/edit`}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ padding: '0.5rem', color: '#9ca3af' }}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit3 style={{ width: 16, height: 16 }} className="w-4 h-4" />
+                  </Link>
+                )}
+              </Card>
+            </Link>
           ))}
-        </ul>
+        </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={confirmDelete}
+        title="Delete Book"
+        message={`Are you sure you want to delete "${book.name}"? This will also delete all ${orders.length} purchase orders. This action cannot be undone.`}
+        confirmText="Delete Book"
+        variant="danger"
+      />
     </div>
   )
 }
