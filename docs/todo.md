@@ -7,6 +7,14 @@
 - [x] Custome Date entry.
 - [x] Add Analytics for each Book. 
 
+
+- [ ] Add Payment of client
+- [ ] Add Poune Retour
+- [ ] Add Book PDF
+
+
+
+
 - [ ] Add Search/Filter POs in a book
 - [ ] Add Phone number field to book
 - [ ] Add Logo to PDF
