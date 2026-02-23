@@ -33,11 +33,10 @@ export default function BookForm() {
   const [name, setName] = useState('')
   const [ownerName, setOwnerName] = useState('')
   const [color, setColor] = useState(DEFAULT_COLOR)
-  const [totalPages, setTotalPages] = useState(1)
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    const book = addBook({ name, ownerName, color, totalPages })
+    const book = addBook({ name, ownerName, color })
     navigate(`/book/${book.id}`)
   }
 
@@ -94,14 +93,6 @@ export default function BookForm() {
               ))}
             </div>
           </div>
-          
-          <Input
-            label="Total pages"
-            type="number"
-            min={1}
-            value={totalPages}
-            onChange={(e) => setTotalPages(Number(e.target.value) || 1)}
-          />
           
           <div className="flex gap-3 pt-4">
             <Button type="submit" variant="primary">

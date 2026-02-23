@@ -19,7 +19,7 @@ This application is a standalone, browser-based tool for generating and managing
     - **Book Name/ID**
     - **Owner Name:** The name to appear in the "Company/Owner Name Box" on the printed invoice.
     - **Color:** Physical attribute of the book.
-    - **Total Pages**
+    - **PO Capacity:** Unlimited purchase orders per book.
 - **Book Navigation:** Clicking a book enters its specific PO archive.
 
 ---

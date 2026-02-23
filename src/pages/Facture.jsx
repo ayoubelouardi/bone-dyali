@@ -17,6 +17,7 @@ export default function Facture() {
   const { toggleLock, getOrder } = usePurchaseOrders(bookId)
   const [po, setPO] = useState(getPurchaseOrder(bookId, poId))
   const toast = useToast()
+  const orderType = po?.type === 'OR' ? 'OR' : 'PO'
 
   // Refresh PO data when it changes
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function Facture() {
     const updated = toggleLock(poId)
     if (updated) {
       setPO(updated)
-      toast.success(`PO #${po.poNumber} ${updated.locked ? 'locked' : 'unlocked'} successfully`)
+      toast.success(`${orderType} #${po.poNumber} ${updated.locked ? 'locked' : 'unlocked'} successfully`)
     }
   }
 
@@ -51,7 +52,7 @@ export default function Facture() {
   const breadcrumbs = [
     { label: 'Dashboard', href: '/' },
     { label: book.name, href: `/book/${bookId}` },
-    { label: `PO #${po.poNumber}` },
+    { label: `${orderType} #${po.poNumber}` },
   ]
 
   return (

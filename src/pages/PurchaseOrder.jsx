@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react'
 import { getBook } from '../lib/storage'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
@@ -13,6 +13,7 @@ const emptyLine = () => ({ description: '', quantity: 0, unitPrice: 0, code: '' 
 
 export default function PurchaseOrder() {
   const { bookId, poId } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const book = getBook(bookId)
   const { addOrder, getOrder, updateOrder } = usePurchaseOrders(bookId)
@@ -24,6 +25,9 @@ export default function PurchaseOrder() {
 
   const isNew = !poId || poId === 'new'
   const existingPO = isNew ? null : getOrder(poId)
+  const newOrderType = searchParams.get('type')?.toUpperCase() === 'OR' ? 'OR' : 'PO'
+  const orderType = isNew ? newOrderType : (existingPO?.type === 'OR' ? 'OR' : 'PO')
+  const orderTypeLabel = orderType === 'OR' ? 'Order Returned' : 'Purchase Order'
 
   // Load existing PO data when editing
   useEffect(() => {
@@ -74,7 +78,7 @@ export default function PurchaseOrder() {
     if (!book) return
     
     if (isNew) {
-      addOrder({ client, lineItems, date })
+      addOrder({ client, lineItems, date, type: orderType })
     } else {
       const success = updateOrder(poId, { client, lineItems, date })
       if (!success) {
@@ -98,7 +102,7 @@ export default function PurchaseOrder() {
   const breadcrumbs = [
     { label: 'Dashboard', href: '/' },
     { label: book.name, href: `/book/${bookId}` },
-    { label: isNew ? 'New PO' : `PO #${existingPO?.poNumber}` },
+    { label: isNew ? `New ${orderType === 'OR' ? 'OR' : 'PO'}` : `${orderType} #${existingPO?.poNumber}` },
   ]
 
   return (
@@ -119,9 +123,14 @@ export default function PurchaseOrder() {
       )}
 
       <Card>
-        <h1 className="text-xl font-bold text-gray-900 mb-6">
-          {isNew ? 'New Purchase Order' : `Edit Purchase Order #${existingPO?.poNumber}`}
-        </h1>
+        <div className="flex items-center gap-2 mb-6">
+          <h1 className="text-xl font-bold text-gray-900">
+            {isNew ? `New ${orderTypeLabel}` : `Edit ${orderTypeLabel} #${existingPO?.poNumber}`}
+          </h1>
+          <Badge variant={orderType === 'OR' ? 'warning' : 'primary'} size="sm">
+            {orderType}
+          </Badge>
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Client Section */}
@@ -242,7 +251,7 @@ export default function PurchaseOrder() {
           {/* Submit Button */}
           <div className="flex gap-3 pt-4 border-t border-gray-100">
             <Button type="submit" icon={Save}>
-              {isNew ? 'Save Purchase Order' : 'Update Purchase Order'}
+              {isNew ? `Save ${orderTypeLabel}` : `Update ${orderTypeLabel}`}
             </Button>
           </div>
         </form>

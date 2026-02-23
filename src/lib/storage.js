@@ -57,7 +57,7 @@ export function savePurchaseOrders(bookId, orders) {
   }
 }
 
-export function createBook({ name, ownerName, color, totalPages }) {
+export function createBook({ name, ownerName, color }) {
   const books = getBooks()
   const id = generateUUID()
   const book = {
@@ -65,7 +65,6 @@ export function createBook({ name, ownerName, color, totalPages }) {
     name: name.trim() || 'Unnamed book',
     ownerName: (ownerName || '').trim(),
     color: color || '#6366f1',
-    totalPages: Math.max(1, Number(totalPages) || 1),
     createdAt: new Date().toISOString(),
     nextPoNumber: 1,
   }
@@ -95,7 +94,11 @@ export function deleteBook(id) {
   } catch {}
 }
 
-export function createPurchaseOrder(bookId, { client, lineItems, date }) {
+function normalizeOrderType(type) {
+  return String(type || '').toUpperCase() === 'OR' ? 'OR' : 'PO'
+}
+
+export function createPurchaseOrder(bookId, { client, lineItems, date, type }) {
   const book = getBook(bookId)
   if (!book) return null
   const orders = getPurchaseOrders(bookId)
@@ -105,6 +108,7 @@ export function createPurchaseOrder(bookId, { client, lineItems, date }) {
     id,
     bookId,
     poNumber,
+    type: normalizeOrderType(type),
     date: (date || new Date().toISOString().slice(0, 10)),
     client: {
       name: (client?.name ?? '').trim(),
@@ -144,6 +148,7 @@ export function updatePurchaseOrder(bookId, poId, updates) {
   const updatedPO = {
     ...po,
     ...updates,
+    type: normalizeOrderType(updates.type ?? po.type),
     updatedAt: new Date().toISOString(),
     // Ensure these fields are properly formatted if updated
     client: updates.client ? {

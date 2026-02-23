@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Lock, Edit3, FileText, Calendar } from 'lucide-react'
+import { Plus, Trash2, Lock, Edit3, FileText, Calendar, Printer } from 'lucide-react'
 import { useBooks } from '../hooks/useBooks'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
 import { getBook } from '../lib/storage'
@@ -20,11 +20,15 @@ export default function BookDetail() {
   const toast = useToast()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
+  const getOrderType = (order) => (order?.type === 'OR' ? 'OR' : 'PO')
+
   // Analytics
   const analytics = useMemo(() => {
     if (!orders.length) return { totalRevenue: 0, totalQuantity: 0 }
     
     return orders.reduce((acc, po) => {
+      const type = getOrderType(po)
+      const sign = type === 'OR' ? -1 : 1
       const poTotal = po.lineItems.reduce((sum, item) => {
         const qty = Number(item.quantity) || 0
         const price = Number(item.unitPrice) || 0
@@ -36,8 +40,8 @@ export default function BookDetail() {
       }, 0)
       
       return {
-        totalRevenue: acc.totalRevenue + poTotal,
-        totalQuantity: acc.totalQuantity + poQty,
+        totalRevenue: acc.totalRevenue + (sign * poTotal),
+        totalQuantity: acc.totalQuantity + (sign * poQty),
       }
     }, { totalRevenue: 0, totalQuantity: 0 })
   }, [orders])
@@ -93,9 +97,19 @@ export default function BookDetail() {
         <div style={{ flex: 1 }} />
         
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <Link to={`/book/${bookId}/print`}>
+            <Button variant="secondary" icon={Printer}>
+              Print Book
+            </Button>
+          </Link>
           <Link to={`/book/${bookId}/po/new`}>
             <Button variant="primary" icon={Plus}>
               New PO
+            </Button>
+          </Link>
+          <Link to={`/book/${bookId}/po/new?type=or`}>
+            <Button variant="secondary" icon={Plus} style={{ backgroundColor: '#f59e0b', color: '#ffffff' }}>
+              New OR
             </Button>
           </Link>
           <Button variant="danger" icon={Trash2} onClick={handleDelete}>
@@ -150,12 +164,18 @@ export default function BookDetail() {
             </thead>
             <tbody>
               {orders.map((po) => {
+                const type = getOrderType(po)
+                const sign = type === 'OR' ? -1 : 1
                 const poQty = po.lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
                 const poTotal = po.lineItems.reduce((sum, item) => {
                   const qty = Number(item.quantity) || 0
                   const price = Number(item.unitPrice) || 0
                   return sum + qty * price
                 }, 0)
+                const signedQty = sign * poQty
+                const signedTotal = sign * poTotal
+                const orderColor = type === 'OR' ? '#d97706' : book.color
+                const valueColor = type === 'OR' ? '#b45309' : '#111827'
 
                 return (
                   <tr
@@ -172,9 +192,12 @@ export default function BookDetail() {
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#111827', textDecoration: 'none', fontWeight: 600 }}
                       >
                         <span
-                          style={{ width: 4, height: 24, borderRadius: 9999, backgroundColor: book.color }}
+                          style={{ width: 4, height: 24, borderRadius: 9999, backgroundColor: orderColor }}
                         />
-                        <span>PO #{po.poNumber}</span>
+                        <span>{type} #{po.poNumber}</span>
+                        {type === 'OR' && (
+                          <Badge variant="warning" size="sm">Returned</Badge>
+                        )}
                         {po.locked && (
                           <Badge variant="locked" size="sm" icon={Lock}>Locked</Badge>
                         )}
@@ -189,11 +212,11 @@ export default function BookDetail() {
                         <span>{po.client?.name || 'No client'}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: '#111827' }}>
-                      {poQty.toLocaleString()}
+                    <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
+                      {signedQty.toLocaleString()}
                     </td>
-                    <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: '#111827' }}>
-                      {poTotal.toFixed(2)} MAD
+                    <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
+                      {signedTotal.toFixed(2)} MAD
                     </td>
                     <td style={{ padding: '0.875rem 1rem', textAlign: 'right' }}>
                       {!po.locked && (
