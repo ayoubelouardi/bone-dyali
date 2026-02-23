@@ -31,7 +31,7 @@ export function saveBooks(books) {
     localStorage.setItem(BOOKS_KEY, JSON.stringify(books))
   } catch (e) {
     if (e.name === 'QuotaExceededError') {
-      alert('Storage quota exceeded. Please delete some books or export your data as backup.')
+      console.warn('Storage quota exceeded. Please delete some books or export your data as backup.')
     }
     throw e
   }
@@ -51,7 +51,7 @@ export function savePurchaseOrders(bookId, orders) {
     localStorage.setItem(poKey(bookId), JSON.stringify(orders))
   } catch (e) {
     if (e.name === 'QuotaExceededError') {
-      alert('Storage quota exceeded. Please delete some purchase orders or export your data as backup.')
+      console.warn('Storage quota exceeded. Please delete some purchase orders or export your data as backup.')
     }
     throw e
   }
@@ -117,7 +117,9 @@ export function createPurchaseOrder(bookId, { client, lineItems, date }) {
       unitPrice: Math.max(0, Number(item.unitPrice) || 0),
       code: (item.code ?? '').trim(),
     })),
+    locked: false,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   }
   orders.push(po)
   savePurchaseOrders(bookId, orders)
@@ -127,6 +129,54 @@ export function createPurchaseOrder(bookId, { client, lineItems, date }) {
 
 export function getPurchaseOrder(bookId, poId) {
   return getPurchaseOrders(bookId).find((p) => p.id === poId) ?? null
+}
+
+export function updatePurchaseOrder(bookId, poId, updates) {
+  const orders = getPurchaseOrders(bookId)
+  const index = orders.findIndex((p) => p.id === poId)
+  if (index === -1) return null
+  
+  const po = orders[index]
+  if (po.locked) {
+    throw new Error('Cannot edit locked purchase order')
+  }
+  
+  const updatedPO = {
+    ...po,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+    // Ensure these fields are properly formatted if updated
+    client: updates.client ? {
+      name: (updates.client?.name ?? po.client?.name ?? '').trim(),
+      address: (updates.client?.address ?? po.client?.address ?? '').trim(),
+      extra: (updates.client?.extra ?? po.client?.extra ?? '').trim(),
+    } : po.client,
+    lineItems: updates.lineItems ? updates.lineItems.map((item) => ({
+      description: (item.description ?? '').trim(),
+      quantity: Math.max(0, Number(item.quantity) || 0),
+      unitPrice: Math.max(0, Number(item.unitPrice) || 0),
+      code: (item.code ?? '').trim(),
+    })) : po.lineItems,
+  }
+  
+  orders[index] = updatedPO
+  savePurchaseOrders(bookId, orders)
+  return updatedPO
+}
+
+export function togglePOLock(bookId, poId) {
+  const orders = getPurchaseOrders(bookId)
+  const index = orders.findIndex((p) => p.id === poId)
+  if (index === -1) return null
+  
+  orders[index] = {
+    ...orders[index],
+    locked: !orders[index].locked,
+    updatedAt: new Date().toISOString(),
+  }
+  
+  savePurchaseOrders(bookId, orders)
+  return orders[index]
 }
 
 /** Permanently delete all app data from localStorage. */

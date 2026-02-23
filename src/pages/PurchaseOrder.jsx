@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getBook } from '../lib/storage'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
@@ -9,12 +9,37 @@ export default function PurchaseOrder() {
   const { bookId, poId } = useParams()
   const navigate = useNavigate()
   const book = getBook(bookId)
-  const { addOrder } = usePurchaseOrders(bookId)
+  const { addOrder, getOrder, updateOrder } = usePurchaseOrders(bookId)
   const [client, setClient] = useState({ name: '', address: '', extra: '' })
   const [lineItems, setLineItems] = useState([emptyLine()])
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const isNew = !poId || poId === 'new'
+  const existingPO = isNew ? null : getOrder(poId)
+
+  // Load existing PO data when editing
+  useEffect(() => {
+    if (isNew) {
+      setIsInitialized(true)
+      return
+    }
+
+    if (!existingPO || isInitialized) return
+
+    if (existingPO.locked) {
+      setErrorMessage('This purchase order is locked and cannot be edited. Please unlock it first.')
+      navigate(`/book/${bookId}/po/${poId}`)
+      return
+    }
+
+    setClient(existingPO.client || { name: '', address: '', extra: '' })
+    setLineItems(existingPO.lineItems && existingPO.lineItems.length > 0 ? existingPO.lineItems : [emptyLine()])
+    setDate(existingPO.date || new Date().toISOString().slice(0, 10))
+    setIsInitialized(true)
+  }, [existingPO, bookId, poId, navigate, isInitialized, isNew])
+
   const orderTotal = useMemo(
     () =>
       lineItems.reduce(
@@ -40,8 +65,18 @@ export default function PurchaseOrder() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!isNew || !book) return
-    addOrder({ client, lineItems, date })
+    if (!book) return
+    
+    if (isNew) {
+      addOrder({ client, lineItems, date })
+    } else {
+      const success = updateOrder(poId, { client, lineItems, date })
+      if (!success) {
+        setErrorMessage('Unable to update this purchase order. It might be locked.')
+        return
+      }
+    }
+    
     navigate(`/book/${bookId}`)
   }
 
@@ -56,10 +91,17 @@ export default function PurchaseOrder() {
 
   return (
     <div className="no-print">
+      {errorMessage && (
+        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', borderRadius: 6 }}>
+          {errorMessage}
+        </div>
+      )}
       <div style={{ marginBottom: '1rem' }}>
-        <button type="button" onClick={() => navigate(`/book/${bookId}`)} style={{ background: 'none', border: 0, color: '#64748b' }}>← Back</button>
+        <button type="button" onClick={() => navigate(isNew ? `/book/${bookId}` : `/book/${bookId}/po/${poId}`)} style={{ background: 'none', border: 0, color: '#64748b' }}>← Back</button>
       </div>
-      <h1 style={{ marginTop: 0 }}>New Purchase Order — {book.name}</h1>
+      <h1 style={{ marginTop: 0 }}>
+        {isNew ? `New Purchase Order — ${book.name}` : `Edit Purchase Order #${existingPO?.poNumber} — ${book.name}`}
+      </h1>
       <form onSubmit={handleSubmit}>
         <section style={{ marginBottom: '1.5rem' }}>
           <h3 style={{ marginTop: 0 }}>Client</h3>
@@ -100,7 +142,9 @@ export default function PurchaseOrder() {
           </div>
           <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>Order total: {orderTotal.toFixed(2)} MAD</p>
         </section>
-        <button type="submit" style={{ ...primaryBtn, background: book.color }}>Save</button>
+        <button type="submit" style={{ ...primaryBtn, background: book.color }}>
+          {isNew ? 'Save' : 'Update'}
+        </button>
       </form>
     </div>
   )

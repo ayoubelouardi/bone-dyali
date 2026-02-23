@@ -29,5 +29,30 @@ export function usePurchaseOrders(bookId) {
     [bookId]
   )
 
-  return { orders, refresh, addOrder, getOrder }
+  const updateOrder = useCallback(
+    (poId, updates) => {
+      if (!bookId) return null
+      try {
+        const po = storage.updatePurchaseOrder(bookId, poId, updates)
+        setOrders(storage.getPurchaseOrders(bookId))
+        return po
+      } catch (error) {
+        console.warn(error.message)
+        return null
+      }
+    },
+    [bookId]
+  )
+
+  const toggleLock = useCallback(
+    (poId) => {
+      if (!bookId) return null
+      const po = storage.togglePOLock(bookId, poId)
+      setOrders(storage.getPurchaseOrders(bookId))
+      return po
+    },
+    [bookId]
+  )
+
+  return { orders, refresh, addOrder, getOrder, updateOrder, toggleLock }
 }

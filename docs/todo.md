@@ -1,11 +1,11 @@
 - [x] make the color of the book custome.
 - [x] Make the UI better
 - [x] too big pdf file
+- [x] Make it Mobile Responsive
+- [x] Add Edit the PO.
+- [x] Add Lock the Saved PO.
+- [x] Custome Date entry.
 
-- [ ] Make it Mobile Responsive
-- [ ] Add Edit the PO.
-- [ ] Add Lock the Saved PO.
-- [ ] Custome Date entry.
 - [ ] Add Analytics for each Book. 
 
 - [ ] Add Search/Filter POs in a book

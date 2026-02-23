@@ -73,21 +73,45 @@ export default function BookDetail() {
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {orders.map((po) => (
-            <li key={po.id}>
+            <li key={po.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
               <Link
                 to={`/book/${bookId}/po/${po.id}`}
                 style={{
-                  display: 'block',
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
                   padding: '0.75rem 1rem',
-                  background: '#fff',
+                  background: po.locked ? '#f9fafb' : '#fff',
                   borderRadius: 6,
                   textDecoration: 'none',
-                  color: 'inherit',
+                  color: po.locked ? '#6b7280' : 'inherit',
                   border: '1px solid #e2e8f0',
                   borderLeft: `4px solid ${book.color}`,
                 }}
               >
-                PO #{po.poNumber} — {po.date} — {po.client?.name || 'No client'}
+                {po.locked && <span style={{ fontSize: '1rem' }}>🔒</span>}
+                <span>PO #{po.poNumber} — {po.date} — {po.client?.name || 'No client'}</span>
+              </Link>
+              <Link
+                to={`/book/${bookId}/po/${po.id}/edit`}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: po.locked ? '#e5e7eb' : '#f3f4f6',
+                  color: po.locked ? '#9ca3af' : '#374151',
+                  borderRadius: 6,
+                  textDecoration: 'none',
+                  minHeight: 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontWeight: 500,
+                  fontSize: '0.875rem',
+                  cursor: po.locked ? 'not-allowed' : 'pointer',
+                  pointerEvents: po.locked ? 'none' : 'auto',
+                }}
+                title={po.locked ? 'Unlock to edit' : 'Edit this purchase order'}
+              >
+                Edit
               </Link>
             </li>
           ))}
