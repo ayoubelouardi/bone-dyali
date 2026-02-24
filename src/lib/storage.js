@@ -95,7 +95,51 @@ export function deleteBook(id) {
 }
 
 function normalizeOrderType(type) {
-  return String(type || '').toUpperCase() === 'OR' ? 'OR' : 'PO'
+  const normalized = String(type || '').toUpperCase()
+  if (normalized === 'OR' || normalized === 'P') return normalized
+  return 'PO'
+}
+
+function normalizePaymentType(paymentType) {
+  const normalized = String(paymentType || '').toLowerCase()
+  if (normalized === 'cash') return 'Cash'
+  if (normalized === 'check') return 'Check'
+  if (normalized === 'etra') return 'Etra'
+  return ''
+}
+
+function normalizeLineItems(lineItems, orderType) {
+  if (orderType !== 'P') {
+    return (lineItems || []).map((item) => ({
+      description: (item.description ?? '').trim(),
+      quantity: Math.max(0, Number(item.quantity) || 0),
+      unitPrice: Math.max(0, Number(item.unitPrice) || 0),
+      code: (item.code ?? '').trim(),
+    }))
+  }
+
+  const uniqueTypes = new Set()
+
+  return (lineItems || []).reduce((acc, item) => {
+    const paymentType = normalizePaymentType(item.paymentType)
+    if (!paymentType || uniqueTypes.has(paymentType)) return acc
+    uniqueTypes.add(paymentType)
+
+    const amount = Math.max(0, Number(item.amount ?? item.unitPrice) || 0)
+
+    acc.push({
+      paymentType,
+      amount,
+      nSerie: (item.nSerie ?? item.code ?? '').trim(),
+      name: (item.name ?? item.description ?? '').trim(),
+      description: (item.name ?? item.description ?? '').trim(),
+      quantity: 1,
+      unitPrice: amount,
+      code: (item.nSerie ?? item.code ?? '').trim(),
+    })
+
+    return acc
+  }, [])
 }
 
 export function createPurchaseOrder(bookId, { client, lineItems, date, type }) {
@@ -104,23 +148,19 @@ export function createPurchaseOrder(bookId, { client, lineItems, date, type }) {
   const orders = getPurchaseOrders(bookId)
   const poNumber = book.nextPoNumber
   const id = generateUUID()
+  const orderType = normalizeOrderType(type)
   const po = {
     id,
     bookId,
     poNumber,
-    type: normalizeOrderType(type),
+    type: orderType,
     date: (date || new Date().toISOString().slice(0, 10)),
     client: {
       name: (client?.name ?? '').trim(),
       address: (client?.address ?? '').trim(),
       extra: (client?.extra ?? '').trim(),
     },
-    lineItems: (lineItems || []).map((item) => ({
-      description: (item.description ?? '').trim(),
-      quantity: Math.max(0, Number(item.quantity) || 0),
-      unitPrice: Math.max(0, Number(item.unitPrice) || 0),
-      code: (item.code ?? '').trim(),
-    })),
+    lineItems: normalizeLineItems(lineItems, orderType),
     locked: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -145,10 +185,12 @@ export function updatePurchaseOrder(bookId, poId, updates) {
     throw new Error('Cannot edit locked purchase order')
   }
   
+  const nextType = normalizeOrderType(updates.type ?? po.type)
+
   const updatedPO = {
     ...po,
     ...updates,
-    type: normalizeOrderType(updates.type ?? po.type),
+    type: nextType,
     updatedAt: new Date().toISOString(),
     // Ensure these fields are properly formatted if updated
     client: updates.client ? {
@@ -156,12 +198,7 @@ export function updatePurchaseOrder(bookId, poId, updates) {
       address: (updates.client?.address ?? po.client?.address ?? '').trim(),
       extra: (updates.client?.extra ?? po.client?.extra ?? '').trim(),
     } : po.client,
-    lineItems: updates.lineItems ? updates.lineItems.map((item) => ({
-      description: (item.description ?? '').trim(),
-      quantity: Math.max(0, Number(item.quantity) || 0),
-      unitPrice: Math.max(0, Number(item.unitPrice) || 0),
-      code: (item.code ?? '').trim(),
-    })) : po.lineItems,
+    lineItems: updates.lineItems ? normalizeLineItems(updates.lineItems, nextType) : po.lineItems,
   }
   
   orders[index] = updatedPO

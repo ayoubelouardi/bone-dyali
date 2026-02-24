@@ -10,6 +10,8 @@ import Breadcrumbs from '../components/ui/Breadcrumbs'
 import Badge from '../components/ui/Badge'
 
 const emptyLine = () => ({ description: '', quantity: 0, unitPrice: 0, code: '' })
+const emptyPaymentLine = () => ({ paymentType: '', nSerie: '', name: '', amount: 0 })
+const PAYMENT_TYPES = ['Cash', 'Check', 'Etra']
 
 export default function PurchaseOrder() {
   const { bookId, poId } = useParams()
@@ -25,13 +27,22 @@ export default function PurchaseOrder() {
 
   const isNew = !poId || poId === 'new'
   const existingPO = isNew ? null : getOrder(poId)
-  const newOrderType = searchParams.get('type')?.toUpperCase() === 'OR' ? 'OR' : 'PO'
-  const orderType = isNew ? newOrderType : (existingPO?.type === 'OR' ? 'OR' : 'PO')
-  const orderTypeLabel = orderType === 'OR' ? 'Order Returned' : 'Purchase Order'
+  const requestedType = searchParams.get('type')?.toUpperCase()
+  const newOrderType = requestedType === 'OR' ? 'OR' : requestedType === 'P' ? 'P' : 'PO'
+  const orderType = isNew
+    ? newOrderType
+    : existingPO?.type === 'OR'
+      ? 'OR'
+      : existingPO?.type === 'P'
+        ? 'P'
+        : 'PO'
+  const orderTypeLabel = orderType === 'OR' ? 'Order Returned' : orderType === 'P' ? 'Payment' : 'Purchase Order'
+  const isPayment = orderType === 'P'
 
   // Load existing PO data when editing
   useEffect(() => {
     if (isNew) {
+      setLineItems(isPayment ? [emptyPaymentLine()] : [emptyLine()])
       setIsInitialized(true)
       return
     }
@@ -45,18 +56,32 @@ export default function PurchaseOrder() {
     }
 
     setClient(existingPO.client || { name: '', address: '', extra: '' })
-    setLineItems(existingPO.lineItems && existingPO.lineItems.length > 0 ? existingPO.lineItems : [emptyLine()])
+    if (orderType === 'P') {
+      const paymentLines = (existingPO.lineItems || []).map((item) => ({
+        paymentType: item.paymentType || '',
+        nSerie: item.nSerie ?? item.code ?? '',
+        name: item.name ?? item.description ?? '',
+        amount: Number(item.amount ?? item.unitPrice) || 0,
+      }))
+      setLineItems(paymentLines.length > 0 ? paymentLines : [emptyPaymentLine()])
+    } else {
+      setLineItems(existingPO.lineItems && existingPO.lineItems.length > 0 ? existingPO.lineItems : [emptyLine()])
+    }
     setDate(existingPO.date || new Date().toISOString().slice(0, 10))
     setIsInitialized(true)
-  }, [existingPO, bookId, poId, navigate, isInitialized, isNew])
+  }, [existingPO, bookId, poId, navigate, isInitialized, isNew, orderType, isPayment])
 
   const orderTotal = useMemo(
-    () =>
-      lineItems.reduce(
+    () => {
+      if (isPayment) {
+        return lineItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+      }
+      return lineItems.reduce(
         (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0),
         0
-      ),
-    [lineItems]
+      )
+    },
+    [lineItems, isPayment]
   )
 
   const updateLine = (index, field, value) => {
@@ -67,7 +92,7 @@ export default function PurchaseOrder() {
     })
   }
 
-  const addLine = () => setLineItems((prev) => [...prev, emptyLine()])
+  const addLine = () => setLineItems((prev) => [...prev, isPayment ? emptyPaymentLine() : emptyLine()])
   const removeLine = (index) => {
     if (lineItems.length <= 1) return
     setLineItems((prev) => prev.filter((_, i) => i !== index))
@@ -76,11 +101,29 @@ export default function PurchaseOrder() {
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!book) return
+
+    if (isPayment) {
+      const selectedTypes = lineItems.map((item) => item.paymentType).filter(Boolean)
+      const hasDuplicateType = new Set(selectedTypes).size !== selectedTypes.length
+      if (hasDuplicateType) {
+        setErrorMessage('Payment type must be unique: only one Cash, one Check, and one Etra line are allowed.')
+        return
+      }
+    }
+
+    const normalizedLineItems = isPayment
+      ? lineItems.map((item) => ({
+          paymentType: item.paymentType,
+          nSerie: item.nSerie,
+          name: item.name,
+          amount: item.amount,
+        }))
+      : lineItems
     
     if (isNew) {
-      addOrder({ client, lineItems, date, type: orderType })
+      addOrder({ client, lineItems: normalizedLineItems, date, type: orderType })
     } else {
-      const success = updateOrder(poId, { client, lineItems, date })
+      const success = updateOrder(poId, { client, lineItems: normalizedLineItems, date })
       if (!success) {
         setErrorMessage('Unable to update this purchase order. It might be locked.')
         return
@@ -102,7 +145,7 @@ export default function PurchaseOrder() {
   const breadcrumbs = [
     { label: 'Dashboard', href: '/' },
     { label: book.name, href: `/book/${bookId}` },
-    { label: isNew ? `New ${orderType === 'OR' ? 'OR' : 'PO'}` : `${orderType} #${existingPO?.poNumber}` },
+    { label: isNew ? `New ${orderType}` : `${orderType} #${existingPO?.poNumber}` },
   ]
 
   return (
@@ -127,7 +170,7 @@ export default function PurchaseOrder() {
           <h1 className="text-xl font-bold text-gray-900">
             {isNew ? `New ${orderTypeLabel}` : `Edit ${orderTypeLabel} #${existingPO?.poNumber}`}
           </h1>
-          <Badge variant={orderType === 'OR' ? 'warning' : 'primary'} size="sm">
+          <Badge variant={orderType === 'OR' ? 'warning' : orderType === 'P' ? 'success' : 'primary'} size="sm">
             {orderType}
           </Badge>
         </div>
@@ -163,67 +206,131 @@ export default function PurchaseOrder() {
           {/* Line Items Section */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Line Items</h3>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">{isPayment ? 'Payment Details' : 'Line Items'}</h3>
               <Button type="button" variant="secondary" size="sm" icon={Plus} onClick={addLine}>
-                Add Line
+                {isPayment ? 'Add Payment' : 'Add Line'}
               </Button>
             </div>
             
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px]">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-20">Qty</th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500">Description</th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-24">Code</th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-28">Unit Price</th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-24">Amount</th>
-                    <th className="w-12"></th>
-                  </tr>
+                  {isPayment ? (
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-32">Payment Type</th>
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-36">N SERIE</th>
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500">Name</th>
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-28">Amount</th>
+                      <th className="w-12"></th>
+                    </tr>
+                  ) : (
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-20">Qty</th>
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500">Description</th>
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-24">Code</th>
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-28">Unit Price</th>
+                      <th className="text-left py-3 px-2 text-sm font-medium text-gray-500 w-24">Amount</th>
+                      <th className="w-12"></th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {lineItems.map((item, i) => (
                     <tr key={i} className="border-b border-gray-100">
-                      <td className="py-2 px-2">
-                        <input
-                          type="number"
-                          min={0}
-                          value={item.quantity}
-                          onChange={(e) => updateLine(i, 'quantity', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          type="text"
-                          value={item.description}
-                          onChange={(e) => updateLine(i, 'description', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Item description"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          type="text"
-                          value={item.code}
-                          onChange={(e) => updateLine(i, 'code', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Code"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={item.unitPrice}
-                          onChange={(e) => updateLine(i, 'unitPrice', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </td>
-                      <td className="py-2 px-2 text-gray-600 font-medium">
-                        {((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}
-                      </td>
+                      {isPayment ? (
+                        <>
+                          <td className="py-2 px-2">
+                            <select
+                              value={item.paymentType || ''}
+                              onChange={(e) => updateLine(i, 'paymentType', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                            >
+                              <option value="">Select type</option>
+                              {PAYMENT_TYPES.map((paymentType) => {
+                                const isUsedByAnotherRow = lineItems.some(
+                                  (row, rowIndex) => rowIndex !== i && row.paymentType === paymentType
+                                )
+                                return (
+                                  <option key={paymentType} value={paymentType} disabled={isUsedByAnotherRow}>
+                                    {paymentType}
+                                  </option>
+                                )
+                              })}
+                            </select>
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={item.nSerie || ''}
+                              onChange={(e) => updateLine(i, 'nSerie', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="N SERIE"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={item.name || ''}
+                              onChange={(e) => updateLine(i, 'name', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Name"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={item.amount}
+                              onChange={(e) => updateLine(i, 'amount', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-2 px-2">
+                            <input
+                              type="number"
+                              min={0}
+                              value={item.quantity}
+                              onChange={(e) => updateLine(i, 'quantity', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => updateLine(i, 'description', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Item description"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="text"
+                              value={item.code}
+                              onChange={(e) => updateLine(i, 'code', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Code"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={item.unitPrice}
+                              onChange={(e) => updateLine(i, 'unitPrice', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </td>
+                          <td className="py-2 px-2 text-gray-600 font-medium">
+                            {((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}
+                          </td>
+                        </>
+                      )}
                       <td className="py-2 px-2">
                         <button
                           type="button"
@@ -242,8 +349,8 @@ export default function PurchaseOrder() {
             
             <div className="flex justify-end mt-4 p-4 bg-gray-50 rounded-lg">
               <div className="text-right">
-                <div className="text-sm text-gray-500">Order Total</div>
-                <div className="text-2xl font-bold text-gray-900">{orderTotal.toFixed(2)} MAD</div>
+                <div className="text-sm text-gray-500">{isPayment ? 'Payment Total' : 'Order Total'}</div>
+                <div className={`text-2xl font-bold ${isPayment ? 'text-green-700' : 'text-gray-900'}`}>{orderTotal.toFixed(2)} MAD</div>
               </div>
             </div>
           </div>
