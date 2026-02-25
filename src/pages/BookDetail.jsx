@@ -1,6 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Lock, Edit3, Calendar, Printer, ChevronRight, ChevronDown } from 'lucide-react'
+
+// Utility to convert hex color to rgba with given alpha
+function hexToRgba(hex, alpha = 0.08) {
+  if (!hex) return `rgba(0,0,0,${alpha})`
+  const h = hex.replace('#', '')
+  const norm = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  const bigint = parseInt(norm, 16)
+  const r = (bigint >> 16) & 255
+  const g = (bigint >> 8) & 255
+  const b = bigint & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 import { useBooks } from '../hooks/useBooks'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
 import { getBook } from '../lib/storage'
@@ -190,7 +202,7 @@ export default function BookDetail() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '0.875rem 1rem',
-                  backgroundColor: '#ffffff',
+                  backgroundColor: hexToRgba(section.color, 0.06),
                   border: 0,
                   borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none',
                   cursor: 'pointer',
@@ -204,11 +216,35 @@ export default function BookDetail() {
                   <span style={{ fontWeight: 600, color: '#111827' }}>{section.type} - {section.label}</span>
                   <Badge variant="secondary" size="sm">{sectionOrders.length}</Badge>
                 </div>
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
-                )}
+
+                {/* Right side: for Payments show breakdown, otherwise just chevron */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {section.type === 'P' && (
+                    (() => {
+                      const totals = sectionOrders.reduce((acc, po) => {
+                        for (const li of po.lineItems || []) {
+                          const t = (li.paymentType || '').trim()
+                          const amount = Number(li.amount ?? li.unitPrice) || 0
+                          if (t === 'Cash') acc.cash += amount
+                          else if (t === 'Check') acc.check += amount
+                          else if (t === 'Etra') acc.etra += amount
+                        }
+                        return acc
+                      }, { cash: 0, check: 0, etra: 0 })
+
+                      return (
+                        <span style={{ fontSize: '0.875rem', color: '#374151', marginRight: '0.5rem' }}>
+                          Cash: {totals.cash.toFixed(2)} MAD · Check: {totals.check.toFixed(2)} MAD · Etra: {totals.etra.toFixed(2)} MAD
+                        </span>
+                      )
+                    })()
+                  )}
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  )}
+                </div>
               </button>
 
               {isExpanded && (
@@ -223,8 +259,16 @@ export default function BookDetail() {
                         <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
                           <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{section.type}</th>
                           <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date / Client</th>
-                          <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
-                          <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total</th>
+                          {section.type !== 'P' ? (
+                            <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
+                          ) : (
+                            <>
+                              <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cash</th>
+                              <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Check</th>
+                              <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Etra</th>
+                            </>
+                          )}
+                          <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total</th>
                           <th style={{ width: 56, padding: '0.75rem 1rem' }} />
                         </tr>
                       </thead>
@@ -292,16 +336,28 @@ export default function BookDetail() {
                                     {po.date}
                                   </span>
                                   <span>{po.client?.name || 'No client'}</span>
-                                  {type === 'P' && paymentBreakdown && (
-                                    <span style={{ color: '#15803d' }}>
-                                      Cash: {paymentBreakdown.cash.toFixed(2)} MAD · Check: {paymentBreakdown.check.toFixed(2)} MAD · Etra: {paymentBreakdown.etra.toFixed(2)} MAD
-                                    </span>
-                                  )}
+                                  {/* payment breakdown moved to dedicated columns for P section */}
                                 </div>
                               </td>
-                              <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
-                                {type === 'P' ? '—' : signedQty.toLocaleString()}
-                              </td>
+                              {section.type !== 'P' ? (
+                                <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
+                                  {type === 'P' ? '—' : signedQty.toLocaleString()}
+                                </td>
+                              ) : (
+                                (() => {
+                                  const cash = po.lineItems.reduce((s, it) => (it.paymentType === 'Cash' ? s + (Number(it.amount ?? it.unitPrice) || 0) : s), 0)
+                                  const check = po.lineItems.reduce((s, it) => (it.paymentType === 'Check' ? s + (Number(it.amount ?? it.unitPrice) || 0) : s), 0)
+                                  const etra = po.lineItems.reduce((s, it) => (it.paymentType === 'Etra' ? s + (Number(it.amount ?? it.unitPrice) || 0) : s), 0)
+                                  return (
+                                    <>
+                                      <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: '#15803d' }}>{cash.toFixed(2)} MAD</td>
+                                      <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: '#15803d' }}>{check.toFixed(2)} MAD</td>
+                                      <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: '#15803d' }}>{etra.toFixed(2)} MAD</td>
+                                    </>
+                                  )
+                                })()
+                              )}
+
                               <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
                                 {signedTotal.toFixed(2)} MAD
                               </td>
