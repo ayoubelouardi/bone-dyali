@@ -23,7 +23,7 @@ export default function BookDetail() {
   const getOrderType = (order) => {
     if (order?.type === 'OR') return 'OR'
     if (order?.type === 'P') return 'P'
-    return 'PO'
+    return 'O'
   }
 
   // Analytics
@@ -47,7 +47,7 @@ export default function BookDetail() {
             return sum + (Number(item.quantity) || 0)
           }, 0)
 
-      const signedAmount = type === 'PO' ? poTotal : -poTotal
+      const signedAmount = type === 'O' ? poTotal : -poTotal
       const signedQty = type === 'OR' ? -poQty : poQty
       
       return {
@@ -115,7 +115,7 @@ export default function BookDetail() {
           </Link>
           <Link to={`/book/${bookId}/po/new`}>
             <Button variant="primary" icon={Plus}>
-              New PO
+              New O
             </Button>
           </Link>
           <Link to={`/book/${bookId}/po/new?type=or`}>
@@ -171,7 +171,7 @@ export default function BookDetail() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>PO</th>
+                <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>O</th>
                 <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date / Client</th>
                 <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
                 <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total</th>
@@ -194,7 +194,7 @@ export default function BookDetail() {
                   : po.lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
 
                 const signedQty = type === 'OR' ? -poQty : poQty
-                const signedTotal = type === 'PO' ? poTotal : -poTotal
+                const signedTotal = type === 'O' ? poTotal : -poTotal
                 const orderColor = type === 'OR' ? '#d97706' : type === 'P' ? '#16a34a' : book.color
                 const valueColor = type === 'OR' ? '#b45309' : type === 'P' ? '#15803d' : '#111827'
 

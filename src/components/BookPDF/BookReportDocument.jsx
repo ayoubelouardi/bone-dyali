@@ -27,7 +27,7 @@ export default function BookReportDocument({ book, orders }) {
   if (!book) return null
 
   const rows = (orders || []).map((po) => {
-    const type = po.type === 'OR' ? 'OR' : po.type === 'P' ? 'P' : 'PO'
+    const type = po.type === 'OR' ? 'OR' : po.type === 'P' ? 'P' : 'O'
     const qty = type === 'P'
       ? 0
       : (po.lineItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
@@ -41,7 +41,7 @@ export default function BookReportDocument({ book, orders }) {
     }, 0)
 
     const signedQty = type === 'OR' ? -qty : qty
-    const signedTotal = type === 'PO' ? total : -total
+    const signedTotal = type === 'O' ? total : -total
 
     return {
       id: po.id,

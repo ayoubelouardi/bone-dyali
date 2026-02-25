@@ -9,7 +9,7 @@ export default function FactureView({ book, po }) {
 
   if (!book || !po) return <p>Loading…</p>
 
-  const fileName = `po-${po.poNumber}.pdf`
+  const fileName = `o-${po.poNumber}.pdf`
 
   return (
     <BlobProvider document={<FactureDocument book={book} po={po} />}>

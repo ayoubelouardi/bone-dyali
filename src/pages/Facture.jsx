@@ -17,7 +17,7 @@ export default function Facture() {
   const { toggleLock, getOrder } = usePurchaseOrders(bookId)
   const [po, setPO] = useState(getPurchaseOrder(bookId, poId))
   const toast = useToast()
-  const orderType = po?.type === 'OR' ? 'OR' : po?.type === 'P' ? 'P' : 'PO'
+  const orderType = po?.type === 'OR' ? 'OR' : po?.type === 'P' ? 'P' : 'O'
 
   // Refresh PO data when it changes
   useEffect(() => {

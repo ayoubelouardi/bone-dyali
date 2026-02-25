@@ -96,8 +96,9 @@ export function deleteBook(id) {
 
 function normalizeOrderType(type) {
   const normalized = String(type || '').toUpperCase()
+  if (normalized === 'PO') return 'O'
   if (normalized === 'OR' || normalized === 'P') return normalized
-  return 'PO'
+  return 'O'
 }
 
 function normalizePaymentType(paymentType) {

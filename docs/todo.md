@@ -6,12 +6,13 @@
 - [x] Add Lock the Saved PO.
 - [x] Custome Date entry.
 - [x] Add Analytics for each Book. 
+- [x] Add Payment of client
+- [x] Add Poune Retour
+- [x] Add Book PDF
 
-
-- [ ] Add Payment of client
-- [ ] Add Poune Retour
-- [ ] Add Book PDF
-
+- [x] Add Categorization for the O, OR, P.
+- [ ] Make a print for each.
+- [ ] Make a plan for synyc and login in and security.
 
 
 

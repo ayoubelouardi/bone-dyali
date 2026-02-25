@@ -42,9 +42,9 @@ describe('usePurchaseOrders', () => {
 
     act(() => {
       state = 'afterAdd'
-      result.current.addOrder({ type: 'PO' })
+      result.current.addOrder({ type: 'O' })
     })
-    expect(storage.createPurchaseOrder).toHaveBeenCalledWith('b1', { type: 'PO' })
+    expect(storage.createPurchaseOrder).toHaveBeenCalledWith('b1', { type: 'O' })
     expect(result.current.orders).toEqual([{ id: 'po1' }])
 
     let toggled
@@ -80,7 +80,7 @@ describe('usePurchaseOrders', () => {
   it('returns null when book id is missing', () => {
     const { result } = renderHook(() => usePurchaseOrders(''))
 
-    expect(result.current.addOrder({ type: 'PO' })).toBeNull()
+    expect(result.current.addOrder({ type: 'O' })).toBeNull()
     expect(result.current.updateOrder('po1', {})).toBeNull()
     expect(result.current.toggleLock('po1')).toBeNull()
   })

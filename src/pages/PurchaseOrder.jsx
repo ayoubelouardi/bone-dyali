@@ -28,14 +28,14 @@ export default function PurchaseOrder() {
   const isNew = !poId || poId === 'new'
   const existingPO = isNew ? null : getOrder(poId)
   const requestedType = searchParams.get('type')?.toUpperCase()
-  const newOrderType = requestedType === 'OR' ? 'OR' : requestedType === 'P' ? 'P' : 'PO'
+  const newOrderType = requestedType === 'OR' ? 'OR' : requestedType === 'P' ? 'P' : 'O'
   const orderType = isNew
     ? newOrderType
     : existingPO?.type === 'OR'
       ? 'OR'
       : existingPO?.type === 'P'
         ? 'P'
-        : 'PO'
+        : 'O'
   const orderTypeLabel = orderType === 'OR' ? 'Order Returned' : orderType === 'P' ? 'Payment' : 'Purchase Order'
   const isPayment = orderType === 'P'
 

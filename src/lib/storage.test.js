@@ -53,7 +53,7 @@ describe('storage', () => {
     })
 
     expect(po).not.toBeNull()
-    expect(po.type).toBe('PO')
+    expect(po.type).toBe('O')
     expect(po.poNumber).toBe(1)
     expect(po.client).toEqual({ name: 'Bob', address: 'Addr', extra: 'E' })
     expect(po.lineItems).toEqual([
@@ -103,7 +103,7 @@ describe('storage', () => {
 
   it('returns null when creating PO for non-existing book', () => {
     const po = createPurchaseOrder('missing', {
-      type: 'PO',
+      type: 'O',
       client: { name: '', address: '', extra: '' },
       lineItems: [],
     })
@@ -114,7 +114,7 @@ describe('storage', () => {
   it('throws when updating a locked purchase order', () => {
     const book = createBook({ name: 'Book', ownerName: '', color: '#111111' })
     const po = createPurchaseOrder(book.id, {
-      type: 'PO',
+      type: 'O',
       client: { name: '', address: '', extra: '' },
       lineItems: [{ description: 'x', quantity: 1, unitPrice: 1, code: '' }],
     })
@@ -129,7 +129,7 @@ describe('storage', () => {
   it('toggles PO lock state', () => {
     const book = createBook({ name: 'Book', ownerName: '', color: '#111111' })
     const po = createPurchaseOrder(book.id, {
-      type: 'PO',
+      type: 'O',
       client: { name: '', address: '', extra: '' },
       lineItems: [{ description: 'x', quantity: 1, unitPrice: 1, code: '' }],
     })
@@ -159,12 +159,12 @@ describe('storage', () => {
     const book2 = createBook({ name: 'B2', ownerName: '', color: '#111111' })
 
     createPurchaseOrder(book1.id, {
-      type: 'PO',
+      type: 'O',
       client: { name: '', address: '', extra: '' },
       lineItems: [{ description: 'x', quantity: 1, unitPrice: 1, code: '' }],
     })
     createPurchaseOrder(book2.id, {
-      type: 'PO',
+      type: 'O',
       client: { name: '', address: '', extra: '' },
       lineItems: [{ description: 'y', quantity: 1, unitPrice: 1, code: '' }],
     })
