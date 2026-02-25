@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Lock, Edit3, FileText, Calendar, Printer } from 'lucide-react'
+import { Plus, Trash2, Lock, Edit3, Calendar, Printer, ChevronRight, ChevronDown } from 'lucide-react'
 import { useBooks } from '../hooks/useBooks'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
 import { getBook } from '../lib/storage'
@@ -19,6 +19,7 @@ export default function BookDetail() {
   const book = bookId === 'new' ? null : getBook(bookId)
   const toast = useToast()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [expandedSections, setExpandedSections] = useState({ O: false, OR: false, P: false })
 
   const getOrderType = (order) => {
     if (order?.type === 'OR') return 'OR'
@@ -57,6 +58,20 @@ export default function BookDetail() {
     }, { totalRevenue: 0, totalQuantity: 0 })
   }, [orders])
 
+  const groupedOrders = useMemo(() => {
+    return orders.reduce((acc, order) => {
+      const type = getOrderType(order)
+      acc[type].push(order)
+      return acc
+    }, { O: [], OR: [], P: [] })
+  }, [orders])
+
+  const sections = [
+    { type: 'O', label: 'Orders', color: book?.color || '#2563eb' },
+    { type: 'OR', label: 'Order Returned', color: '#d97706' },
+    { type: 'P', label: 'Payments', color: '#16a34a' },
+  ]
+
   if (bookId === 'new') {
     navigate('/book/new', { replace: true })
     return null
@@ -79,6 +94,10 @@ export default function BookDetail() {
     removeBook(book.id)
     navigate('/')
     toast.success('Book deleted successfully')
+  }
+
+  const toggleSection = (type) => {
+    setExpandedSections((prev) => ({ ...prev, [type]: !prev[type] }))
   }
 
   const breadcrumbs = [
@@ -155,125 +174,161 @@ export default function BookDetail() {
       {/* PO List */}
       <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#111827', marginTop: 0, marginBottom: '1rem' }} className="text-lg font-semibold text-gray-900 mb-4">Purchase Orders</h2>
       
-      {orders.length === 0 ? (
-        <Card style={{ textAlign: 'center', padding: '3rem' }} className="text-center py-12">
-          <div style={{ color: '#9ca3af', marginBottom: '1rem' }}>
-            <FileText style={{ width: 48, height: 48, margin: '0 auto' }} className="w-12 h-12 mx-auto" />
-          </div>
-          <h3 style={{ color: '#111827', fontWeight: 500, marginBottom: '0.5rem' }} className="text-gray-900 font-medium mb-2">No purchase orders yet</h3>
-          <p style={{ color: '#6b7280', marginBottom: '1.5rem' }} className="text-gray-500 mb-6">Create your first purchase order for this book</p>
-          <Link to={`/book/${bookId}/po/new`}>
-            <Button icon={Plus}>Create Purchase Order</Button>
-          </Link>
-        </Card>
-      ) : (
-        <Card style={{ overflowX: 'auto', padding: 0 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>O</th>
-                <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date / Client</th>
-                <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
-                <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total</th>
-                <th style={{ width: 56, padding: '0.75rem 1rem' }} />
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((po) => {
-                const type = getOrderType(po)
-                const poTotal = po.lineItems.reduce((sum, item) => {
-                  if (type === 'P') {
-                    return sum + (Number(item.amount ?? item.unitPrice) || 0)
-                  }
-                  const qty = Number(item.quantity) || 0
-                  const price = Number(item.unitPrice) || 0
-                  return sum + qty * price
-                }, 0)
-                const poQty = type === 'P'
-                  ? 0
-                  : po.lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {sections.map((section) => {
+          const sectionOrders = groupedOrders[section.type]
+          const isExpanded = expandedSections[section.type]
 
-                const signedQty = type === 'OR' ? -poQty : poQty
-                const signedTotal = type === 'O' ? poTotal : -poTotal
-                const orderColor = type === 'OR' ? '#d97706' : type === 'P' ? '#16a34a' : book.color
-                const valueColor = type === 'OR' ? '#b45309' : type === 'P' ? '#15803d' : '#111827'
+          return (
+            <Card key={section.type} style={{ padding: 0, overflow: 'hidden' }}>
+              <button
+                type="button"
+                onClick={() => toggleSection(section.type)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.875rem 1rem',
+                  backgroundColor: '#ffffff',
+                  border: 0,
+                  borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none',
+                  cursor: 'pointer',
+                }}
+                className="hover:bg-gray-50 transition-colors"
+                aria-expanded={isExpanded}
+                aria-label={`Toggle ${section.type} section`}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ width: 4, height: 22, borderRadius: 9999, backgroundColor: section.color }} />
+                  <span style={{ fontWeight: 600, color: '#111827' }}>{section.type} - {section.label}</span>
+                  <Badge variant="secondary" size="sm">{sectionOrders.length}</Badge>
+                </div>
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-500" />
+                )}
+              </button>
 
-                const paymentBreakdown = type === 'P'
-                  ? {
-                      cash: po.lineItems.reduce((sum, item) => item.paymentType === 'Cash' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
-                      check: po.lineItems.reduce((sum, item) => item.paymentType === 'Check' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
-                      etra: po.lineItems.reduce((sum, item) => item.paymentType === 'Etra' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
-                    }
-                  : null
+              {isExpanded && (
+                sectionOrders.length === 0 ? (
+                  <div style={{ padding: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                    No entries in this section.
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                          <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{section.type}</th>
+                          <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date / Client</th>
+                          <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
+                          <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total</th>
+                          <th style={{ width: 56, padding: '0.75rem 1rem' }} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sectionOrders.map((po) => {
+                          const type = getOrderType(po)
+                          const poTotal = po.lineItems.reduce((sum, item) => {
+                            if (type === 'P') {
+                              return sum + (Number(item.amount ?? item.unitPrice) || 0)
+                            }
+                            const qty = Number(item.quantity) || 0
+                            const price = Number(item.unitPrice) || 0
+                            return sum + qty * price
+                          }, 0)
+                          const poQty = type === 'P'
+                            ? 0
+                            : po.lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
 
-                return (
-                  <tr
-                    key={po.id}
-                    style={{
-                      borderBottom: '1px solid #f3f4f6',
-                      opacity: po.locked ? 0.75 : 1,
-                    }}
-                    className="group"
-                  >
-                    <td style={{ padding: '0.875rem 1rem' }}>
-                      <Link
-                        to={`/book/${bookId}/po/${po.id}`}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#111827', textDecoration: 'none', fontWeight: 600 }}
-                      >
-                        <span
-                          style={{ width: 4, height: 24, borderRadius: 9999, backgroundColor: orderColor }}
-                        />
-                        <span>{type} #{po.poNumber}</span>
-                        {type === 'P' && (
-                          <Badge variant="success" size="sm">Payment</Badge>
-                        )}
-                        {type === 'OR' && (
-                          <Badge variant="warning" size="sm">Returned</Badge>
-                        )}
-                        {po.locked && (
-                          <Badge variant="locked" size="sm" icon={Lock}>Locked</Badge>
-                        )}
-                      </Link>
-                    </td>
-                    <td style={{ padding: '0.875rem 1rem', color: '#4b5563', fontSize: '0.875rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Calendar style={{ width: 14, height: 14 }} className="w-3.5 h-3.5" />
-                          {po.date}
-                        </span>
-                        <span>{po.client?.name || 'No client'}</span>
-                        {type === 'P' && paymentBreakdown && (
-                          <span style={{ color: '#15803d' }}>
-                            Cash: {paymentBreakdown.cash.toFixed(2)} MAD · Check: {paymentBreakdown.check.toFixed(2)} MAD · Etra: {paymentBreakdown.etra.toFixed(2)} MAD
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
-                      {type === 'P' ? '—' : signedQty.toLocaleString()}
-                    </td>
-                    <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
-                      {signedTotal.toFixed(2)} MAD
-                    </td>
-                    <td style={{ padding: '0.875rem 1rem', textAlign: 'right' }}>
-                      {!po.locked && (
-                        <Link
-                          to={`/book/${bookId}/po/${po.id}/edit`}
-                          style={{ padding: '0.5rem', color: '#9ca3af', borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                          className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                          title="Edit"
-                        >
-                          <Edit3 style={{ width: 16, height: 16 }} className="w-4 h-4" />
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
+                          const signedQty = type === 'OR' ? -poQty : poQty
+                          const signedTotal = type === 'O' ? poTotal : -poTotal
+                          const orderColor = type === 'OR' ? '#d97706' : type === 'P' ? '#16a34a' : book.color
+                          const valueColor = type === 'OR' ? '#b45309' : type === 'P' ? '#15803d' : '#111827'
+
+                          const paymentBreakdown = type === 'P'
+                            ? {
+                                cash: po.lineItems.reduce((sum, item) => item.paymentType === 'Cash' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
+                                check: po.lineItems.reduce((sum, item) => item.paymentType === 'Check' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
+                                etra: po.lineItems.reduce((sum, item) => item.paymentType === 'Etra' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
+                              }
+                            : null
+
+                          return (
+                            <tr
+                              key={po.id}
+                              style={{
+                                borderBottom: '1px solid #f3f4f6',
+                                opacity: po.locked ? 0.75 : 1,
+                              }}
+                              className="group"
+                            >
+                              <td style={{ padding: '0.875rem 1rem' }}>
+                                <Link
+                                  to={`/book/${bookId}/po/${po.id}`}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#111827', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  <span
+                                    style={{ width: 4, height: 24, borderRadius: 9999, backgroundColor: orderColor }}
+                                  />
+                                  <span>{type} #{po.poNumber}</span>
+                                  {type === 'P' && (
+                                    <Badge variant="success" size="sm">Payment</Badge>
+                                  )}
+                                  {type === 'OR' && (
+                                    <Badge variant="warning" size="sm">Returned</Badge>
+                                  )}
+                                  {po.locked && (
+                                    <Badge variant="locked" size="sm" icon={Lock}>Locked</Badge>
+                                  )}
+                                </Link>
+                              </td>
+                              <td style={{ padding: '0.875rem 1rem', color: '#4b5563', fontSize: '0.875rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                    <Calendar style={{ width: 14, height: 14 }} className="w-3.5 h-3.5" />
+                                    {po.date}
+                                  </span>
+                                  <span>{po.client?.name || 'No client'}</span>
+                                  {type === 'P' && paymentBreakdown && (
+                                    <span style={{ color: '#15803d' }}>
+                                      Cash: {paymentBreakdown.cash.toFixed(2)} MAD · Check: {paymentBreakdown.check.toFixed(2)} MAD · Etra: {paymentBreakdown.etra.toFixed(2)} MAD
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
+                                {type === 'P' ? '—' : signedQty.toLocaleString()}
+                              </td>
+                              <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
+                                {signedTotal.toFixed(2)} MAD
+                              </td>
+                              <td style={{ padding: '0.875rem 1rem', textAlign: 'right' }}>
+                                {!po.locked && (
+                                  <Link
+                                    to={`/book/${bookId}/po/${po.id}/edit`}
+                                    style={{ padding: '0.5rem', color: '#9ca3af', borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit3 style={{ width: 16, height: 16 }} className="w-4 h-4" />
+                                  </Link>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )
-              })}
-            </tbody>
-          </table>
-        </Card>
-      )}
+              )}
+            </Card>
+          )
+        })}
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
