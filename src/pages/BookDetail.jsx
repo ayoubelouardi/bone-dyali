@@ -20,7 +20,11 @@ export default function BookDetail() {
   const toast = useToast()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
-  const getOrderType = (order) => (order?.type === 'OR' ? 'OR' : 'PO')
+  const getOrderType = (order) => {
+    if (order?.type === 'OR') return 'OR'
+    if (order?.type === 'P') return 'P'
+    return 'O'
+  }
 
   // Analytics
   const analytics = useMemo(() => {
@@ -28,20 +32,27 @@ export default function BookDetail() {
     
     return orders.reduce((acc, po) => {
       const type = getOrderType(po)
-      const sign = type === 'OR' ? -1 : 1
       const poTotal = po.lineItems.reduce((sum, item) => {
+        if (type === 'P') {
+          return sum + (Number(item.amount ?? item.unitPrice) || 0)
+        }
         const qty = Number(item.quantity) || 0
         const price = Number(item.unitPrice) || 0
         return sum + qty * price
       }, 0)
       
-      const poQty = po.lineItems.reduce((sum, item) => {
-        return sum + (Number(item.quantity) || 0)
-      }, 0)
+      const poQty = type === 'P'
+        ? 0
+        : po.lineItems.reduce((sum, item) => {
+            return sum + (Number(item.quantity) || 0)
+          }, 0)
+
+      const signedAmount = type === 'O' ? poTotal : -poTotal
+      const signedQty = type === 'OR' ? -poQty : poQty
       
       return {
-        totalRevenue: acc.totalRevenue + (sign * poTotal),
-        totalQuantity: acc.totalQuantity + (sign * poQty),
+        totalRevenue: acc.totalRevenue + signedAmount,
+        totalQuantity: acc.totalQuantity + signedQty,
       }
     }, { totalRevenue: 0, totalQuantity: 0 })
   }, [orders])
@@ -104,12 +115,17 @@ export default function BookDetail() {
           </Link>
           <Link to={`/book/${bookId}/po/new`}>
             <Button variant="primary" icon={Plus}>
-              New PO
+              New O
             </Button>
           </Link>
           <Link to={`/book/${bookId}/po/new?type=or`}>
             <Button variant="secondary" icon={Plus} style={{ backgroundColor: '#f59e0b', color: '#ffffff' }}>
               New OR
+            </Button>
+          </Link>
+          <Link to={`/book/${bookId}/po/new?type=p`}>
+            <Button variant="success" icon={Plus}>
+              Add Payment
             </Button>
           </Link>
           <Button variant="danger" icon={Trash2} onClick={handleDelete}>
@@ -155,7 +171,7 @@ export default function BookDetail() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>PO</th>
+                <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>O</th>
                 <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Date / Client</th>
                 <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Qty</th>
                 <th style={{ textAlign: 'right', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total</th>
@@ -165,17 +181,30 @@ export default function BookDetail() {
             <tbody>
               {orders.map((po) => {
                 const type = getOrderType(po)
-                const sign = type === 'OR' ? -1 : 1
-                const poQty = po.lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
                 const poTotal = po.lineItems.reduce((sum, item) => {
+                  if (type === 'P') {
+                    return sum + (Number(item.amount ?? item.unitPrice) || 0)
+                  }
                   const qty = Number(item.quantity) || 0
                   const price = Number(item.unitPrice) || 0
                   return sum + qty * price
                 }, 0)
-                const signedQty = sign * poQty
-                const signedTotal = sign * poTotal
-                const orderColor = type === 'OR' ? '#d97706' : book.color
-                const valueColor = type === 'OR' ? '#b45309' : '#111827'
+                const poQty = type === 'P'
+                  ? 0
+                  : po.lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+
+                const signedQty = type === 'OR' ? -poQty : poQty
+                const signedTotal = type === 'O' ? poTotal : -poTotal
+                const orderColor = type === 'OR' ? '#d97706' : type === 'P' ? '#16a34a' : book.color
+                const valueColor = type === 'OR' ? '#b45309' : type === 'P' ? '#15803d' : '#111827'
+
+                const paymentBreakdown = type === 'P'
+                  ? {
+                      cash: po.lineItems.reduce((sum, item) => item.paymentType === 'Cash' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
+                      check: po.lineItems.reduce((sum, item) => item.paymentType === 'Check' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
+                      etra: po.lineItems.reduce((sum, item) => item.paymentType === 'Etra' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
+                    }
+                  : null
 
                 return (
                   <tr
@@ -195,6 +224,9 @@ export default function BookDetail() {
                           style={{ width: 4, height: 24, borderRadius: 9999, backgroundColor: orderColor }}
                         />
                         <span>{type} #{po.poNumber}</span>
+                        {type === 'P' && (
+                          <Badge variant="success" size="sm">Payment</Badge>
+                        )}
                         {type === 'OR' && (
                           <Badge variant="warning" size="sm">Returned</Badge>
                         )}
@@ -204,16 +236,21 @@ export default function BookDetail() {
                       </Link>
                     </td>
                     <td style={{ padding: '0.875rem 1rem', color: '#4b5563', fontSize: '0.875rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                           <Calendar style={{ width: 14, height: 14 }} className="w-3.5 h-3.5" />
                           {po.date}
                         </span>
                         <span>{po.client?.name || 'No client'}</span>
+                        {type === 'P' && paymentBreakdown && (
+                          <span style={{ color: '#15803d' }}>
+                            Cash: {paymentBreakdown.cash.toFixed(2)} MAD · Check: {paymentBreakdown.check.toFixed(2)} MAD · Etra: {paymentBreakdown.etra.toFixed(2)} MAD
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
-                      {signedQty.toLocaleString()}
+                      {type === 'P' ? '—' : signedQty.toLocaleString()}
                     </td>
                     <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 600, color: valueColor }}>
                       {signedTotal.toFixed(2)} MAD

@@ -27,22 +27,29 @@ export default function BookReportDocument({ book, orders }) {
   if (!book) return null
 
   const rows = (orders || []).map((po) => {
-    const type = po.type === 'OR' ? 'OR' : 'PO'
-    const sign = type === 'OR' ? -1 : 1
-    const qty = (po.lineItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+    const type = po.type === 'OR' ? 'OR' : po.type === 'P' ? 'P' : 'O'
+    const qty = type === 'P'
+      ? 0
+      : (po.lineItems || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
     const total = (po.lineItems || []).reduce((sum, item) => {
+      if (type === 'P') {
+        return sum + (Number(item.amount ?? item.unitPrice) || 0)
+      }
       const quantity = Number(item.quantity) || 0
       const unitPrice = Number(item.unitPrice) || 0
       return sum + quantity * unitPrice
     }, 0)
+
+    const signedQty = type === 'OR' ? -qty : qty
+    const signedTotal = type === 'O' ? total : -total
 
     return {
       id: po.id,
       type,
       poNumber: po.poNumber,
       date: po.date || '—',
-      qty: sign * qty,
-      total: sign * total,
+      qty: signedQty,
+      total: signedTotal,
     }
   })
 

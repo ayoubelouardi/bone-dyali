@@ -155,7 +155,7 @@ export default function BookReportPageContent({
       <View style={styles.table}>
         <View style={[styles.row, styles.headerRow]}>
           <View style={[styles.cell, styles.colPo]}>
-            <Text style={styles.headerCellText}>PO Number</Text>
+            <Text style={styles.headerCellText}>O Number</Text>
           </View>
           <View style={[styles.cell, styles.colDate]}>
             <Text style={styles.headerCellText}>Date</Text>
@@ -177,7 +177,7 @@ export default function BookReportPageContent({
               <Text>{formatDate(row.date)}</Text>
             </View>
             <View style={[styles.cell, styles.colQty]}>
-              <Text style={styles.rightText}>{row.qty.toLocaleString()}</Text>
+              <Text style={styles.rightText}>{row.type === 'P' ? '—' : row.qty.toLocaleString()}</Text>
             </View>
             <View style={[styles.cell, styles.colTotal, styles.lastCell]}>
               <Text style={styles.rightText}>{row.total.toFixed(2)}</Text>
