@@ -11,10 +11,10 @@ import Facture from './pages/Facture'
 import BookPrint from './pages/BookPrint'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
-import JoinWorkspace from './pages/JoinWorkspace'
+import WorkspaceChoice from './pages/WorkspaceChoice'
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, needsWorkspaceChoice } = useAuth()
   
   if (loading) {
     return (
@@ -26,6 +26,11 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated && isSupabaseConfigured()) {
     return <Navigate to="/login" replace />
+  }
+
+  // Redirect to workspace choice if user has no workspace
+  if (isAuthenticated && needsWorkspaceChoice) {
+    return <Navigate to="/workspace-choice" replace />
   }
 
   return children
@@ -49,6 +54,30 @@ const PublicRoute = ({ children }) => {
   return children
 }
 
+const WorkspaceChoiceRoute = ({ children }) => {
+  const { isAuthenticated, loading, needsWorkspaceChoice } = useAuth()
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  // Not logged in - go to login
+  if (!isAuthenticated && isSupabaseConfigured()) {
+    return <Navigate to="/login" replace />
+  }
+
+  // Has workspace - go to dashboard
+  if (isAuthenticated && !needsWorkspaceChoice) {
+    return <Navigate to="/" replace />
+  }
+
+  return children
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -57,10 +86,10 @@ function AppRoutes() {
           <Login />
         </PublicRoute>
       } />
-      <Route path="/join/:workspaceId" element={
-        <ProtectedRoute>
-          <JoinWorkspace />
-        </ProtectedRoute>
+      <Route path="/workspace-choice" element={
+        <WorkspaceChoiceRoute>
+          <WorkspaceChoice />
+        </WorkspaceChoiceRoute>
       } />
       <Route path="/" element={
         <ProtectedRoute>

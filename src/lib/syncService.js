@@ -32,13 +32,13 @@ const setLocalUpdatedAt = (timestamp) => {
   localStorage.setItem('bone_dyali_updated_at', timestamp)
 }
 
-export const fetchWorkspace = async (userId) => {
+export const fetchWorkspace = async (workspaceId) => {
   if (!isSupabaseConfigured()) return null
   
   const { data, error } = await supabase
     .from('workspaces')
     .select('*')
-    .eq('owner_id', userId)
+    .eq('id', workspaceId)
     .single()
   
   if (error && error.code !== 'PGRST116') {
@@ -49,7 +49,7 @@ export const fetchWorkspace = async (userId) => {
   return data
 }
 
-export const createWorkspace = async (userId, initialData = null) => {
+export const createWorkspace = async (userId, workspaceId, initialData = null) => {
   if (!isSupabaseConfigured()) return null
   
   const data = initialData || { books: [] }
@@ -57,6 +57,7 @@ export const createWorkspace = async (userId, initialData = null) => {
   const { data: workspace, error } = await supabase
     .from('workspaces')
     .insert({
+      id: workspaceId,
       owner_id: userId,
       data,
       updated_at: new Date().toISOString()
@@ -72,46 +73,48 @@ export const createWorkspace = async (userId, initialData = null) => {
   return workspace
 }
 
-export const syncData = async (userId, role = 'admin') => {
+export const syncData = async (userId, role = 'admin', workspaceId = null) => {
   if (!isSupabaseConfigured()) {
     return { success: false, reason: 'not_configured' }
+  }
+
+  if (!workspaceId) {
+    return { success: false, reason: 'no_workspace_id' }
   }
 
   const localData = getLocalData()
   const localUpdatedAt = getLocalUpdatedAt()
 
+  // Fetch workspace data by workspaceId
+  const { data: serverData, error } = await supabase
+    .from('workspaces')
+    .select('data, updated_at')
+    .eq('id', workspaceId)
+    .single()
+
+  if (error) {
+    console.error('Sync error:', error)
+    return { success: false, reason: 'error', error }
+  }
+
+  if (!serverData) {
+    return { success: false, reason: 'no_workspace' }
+  }
+
+  const serverUpdatedAt = serverData.updated_at
+  const serverDataParsed = serverData.data || { books: [] }
+
   if (role === 'admin') {
-    const { data: serverData, error } = await supabase
-      .from('workspaces')
-      .select('data, updated_at')
-      .eq('owner_id', userId)
-      .single()
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('Sync error:', error)
-      return { success: false, reason: 'error', error }
-    }
-
-    if (!serverData) {
-      const workspace = await createWorkspace(userId, localData)
-      if (workspace) {
-        setLocalUpdatedAt(workspace.updated_at)
-        return { success: true, action: 'created', updatedAt: workspace.updated_at }
-      }
-      return { success: false, reason: 'create_failed' }
-    }
-
-    const serverUpdatedAt = serverData.updated_at
-    const serverDataParsed = serverData.data || { books: [] }
-
+    // Admin can push or pull based on timestamps
     if (localUpdatedAt && new Date(localUpdatedAt) > new Date(serverUpdatedAt)) {
+      // Local is newer - push to server
       const { error: updateError } = await supabase
         .from('workspaces')
         .update({
-          data: localData.books,
+          data: { books: localData.books },
           updated_at: new Date().toISOString()
         })
-        .eq('owner_id', userId)
+        .eq('id', workspaceId)
 
       if (updateError) {
         console.error('Push error:', updateError)
@@ -122,6 +125,7 @@ export const syncData = async (userId, role = 'admin') => {
       return { success: true, action: 'pushed', updatedAt: new Date().toISOString() }
     } 
     else if (!localUpdatedAt || new Date(serverUpdatedAt) > new Date(localUpdatedAt)) {
+      // Server is newer - pull from server
       setLocalData(serverDataParsed)
       setLocalUpdatedAt(serverUpdatedAt)
       return { success: true, action: 'pulled', updatedAt: serverUpdatedAt }
@@ -129,27 +133,18 @@ export const syncData = async (userId, role = 'admin') => {
 
     return { success: true, action: 'up_to_date', updatedAt: serverUpdatedAt }
   } else {
-    const { data: workspaceData, error } = await supabase
-      .from('workspaces')
-      .select('data, updated_at')
-      .eq('owner_id', userId)
-      .single()
-
-    if (error || !workspaceData) {
-      return { success: false, reason: 'no_workspace' }
-    }
-
-    setLocalData(workspaceData.data)
-    setLocalUpdatedAt(workspaceData.updated_at)
-    return { success: true, action: 'synced', updatedAt: workspaceData.updated_at }
+    // Viewer can only pull (read-only)
+    setLocalData(serverDataParsed)
+    setLocalUpdatedAt(serverUpdatedAt)
+    return { success: true, action: 'synced', updatedAt: serverUpdatedAt }
   }
 }
 
-export const startSync = (userId, role = 'admin', onSync) => {
+export const startSync = (userId, role = 'admin', workspaceId = null, onSync) => {
   syncCallback = onSync
   
   const runSync = async () => {
-    const result = await syncData(userId, role)
+    const result = await syncData(userId, role, workspaceId)
     if (syncCallback) {
       syncCallback(result)
     }
@@ -177,6 +172,6 @@ export const stopSync = () => {
 
 export const getLastSyncedAt = () => lastSyncedAt
 
-export const forceSync = async (userId, role = 'admin') => {
-  return await syncData(userId, role)
+export const forceSync = async (userId, role = 'admin', workspaceId = null) => {
+  return await syncData(userId, role, workspaceId)
 }
