@@ -216,7 +216,8 @@ export default function WorkspaceChoice() {
             <button
               onClick={handleCreateWorkspace}
               disabled={loading}
-              className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ color: 'white', background: 'black' }}
+              className="w-full py-3 px-4 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

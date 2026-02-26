@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as storage from './storage'
+import * as db from './db.js'
 import { exportAllData, importAllData } from './exportImport'
 
 class MockFileReader {
@@ -25,14 +25,20 @@ class MockFileReader {
   }
 }
 
+const WORKSPACE_ID = 'ws-test'
+
+const BACKUP_PAYLOAD = {
+  books: [{ id: 'b1', name: 'Book 1' }],
+  purchaseOrders: { b1: [{ id: 'po1' }] },
+}
+
 describe('exportImport', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    localStorage.clear()
     vi.stubGlobal('FileReader', MockFileReader)
   })
 
-  it('exports books and purchase orders into downloadable JSON', async () => {
+  it('exports workspace data into a downloadable JSON file', async () => {
     class MockBlob {
       constructor(parts, options) {
         this.parts = parts
@@ -49,46 +55,33 @@ describe('exportImport', () => {
     const anchor = { click, href: '', download: '' }
     vi.spyOn(document, 'createElement').mockReturnValue(anchor)
 
-    vi.spyOn(storage, 'getBooks').mockReturnValue([{ id: 'b1', name: 'Book 1' }])
-    localStorage.setItem('bone_dyali_po_b1', JSON.stringify([{ id: 'po1' }]))
+    vi.spyOn(db, 'readAllWorkspaceData').mockResolvedValue(BACKUP_PAYLOAD)
 
-    exportAllData()
+    await exportAllData(WORKSPACE_ID)
 
+    expect(db.readAllWorkspaceData).toHaveBeenCalledWith(WORKSPACE_ID)
     expect(createObjectURL).toHaveBeenCalledTimes(1)
     const blobArg = createObjectURL.mock.calls[0][0]
     const text = blobArg.parts.join('')
     const parsed = JSON.parse(text)
 
-    expect(parsed).toEqual({
-      books: [{ id: 'b1', name: 'Book 1' }],
-      purchaseOrders: { b1: [{ id: 'po1' }] },
-    })
+    expect(parsed).toEqual(BACKUP_PAYLOAD)
     expect(anchor.download).toMatch(/^bone-dyali-backup-\d{4}-\d{2}-\d{2}\.json$/)
     expect(click).toHaveBeenCalledTimes(1)
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:backup')
   })
 
-  it('imports valid backup and keeps unrelated existing PO keys', async () => {
-    localStorage.setItem('bone_dyali_po_stale', JSON.stringify([{ id: 'old' }]))
-
-    const saveBooksSpy = vi.spyOn(storage, 'saveBooks')
-    const payload = {
-      books: [{ id: 'b1', name: 'Book 1' }],
-      purchaseOrders: {
-        b1: [{ id: 'po1' }],
-      },
-    }
+  it('imports valid backup by calling importWorkspaceData', async () => {
+    vi.spyOn(db, 'importWorkspaceData').mockResolvedValue(undefined)
 
     MockFileReader.next = {
       type: 'success',
-      result: JSON.stringify(payload),
+      result: JSON.stringify(BACKUP_PAYLOAD),
     }
 
-    await expect(importAllData(new Blob(['data']))).resolves.toBeUndefined()
+    await expect(importAllData(new Blob(['data']), WORKSPACE_ID)).resolves.toBeUndefined()
 
-    expect(saveBooksSpy).toHaveBeenCalledWith(payload.books)
-    expect(JSON.parse(localStorage.getItem('bone_dyali_po_b1'))).toEqual([{ id: 'po1' }])
-    expect(JSON.parse(localStorage.getItem('bone_dyali_po_stale'))).toEqual([{ id: 'old' }])
+    expect(db.importWorkspaceData).toHaveBeenCalledWith(WORKSPACE_ID, BACKUP_PAYLOAD)
   })
 
   it('rejects import when books array is missing', async () => {
@@ -97,7 +90,7 @@ describe('exportImport', () => {
       result: JSON.stringify({ purchaseOrders: {} }),
     }
 
-    await expect(importAllData(new Blob(['data']))).rejects.toThrow(
+    await expect(importAllData(new Blob(['data']), WORKSPACE_ID)).rejects.toThrow(
       'Invalid backup: missing books array'
     )
   })
@@ -108,23 +101,18 @@ describe('exportImport', () => {
       error: new Error('read failed'),
     }
 
-    await expect(importAllData(new Blob(['data']))).rejects.toThrow('read failed')
+    await expect(importAllData(new Blob(['data']), WORKSPACE_ID)).rejects.toThrow('read failed')
   })
 
-  it('rejects when writing purchase orders fails', async () => {
+  it('rejects when importWorkspaceData throws', async () => {
+    const error = new Error('db write failed')
+    vi.spyOn(db, 'importWorkspaceData').mockRejectedValue(error)
+
     MockFileReader.next = {
       type: 'success',
-      result: JSON.stringify({
-        books: [],
-        purchaseOrders: { b1: [{ id: 'po1' }] },
-      }),
+      result: JSON.stringify(BACKUP_PAYLOAD),
     }
 
-    const error = new Error('write failed')
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw error
-    })
-
-    await expect(importAllData(new Blob(['data']))).rejects.toThrow('write failed')
+    await expect(importAllData(new Blob(['data']), WORKSPACE_ID)).rejects.toThrow('db write failed')
   })
 })
