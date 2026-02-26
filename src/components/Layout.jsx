@@ -1,7 +1,13 @@
 import { Outlet, Link } from 'react-router-dom'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, Settings, Eye } from 'lucide-react'
+import { UserMenu } from './Auth/UserMenu'
+import { useAuth } from '../contexts/AuthContext'
+import { isSupabaseConfigured } from '../lib/supabase'
 
 export default function Layout() {
+  const { isAdmin, isAuthenticated } = useAuth()
+  const showAuth = isSupabaseConfigured() && isAuthenticated
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Sticky Header */}
@@ -15,6 +21,27 @@ export default function Layout() {
               <BookOpen style={{ width: 24, height: 24 }} />
               <span>Bone Dyali</span>
             </Link>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              {!isAdmin && isAuthenticated && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: '#fbbf24', backgroundColor: 'rgba(251, 191, 36, 0.1)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>
+                  <Eye style={{ width: 12, height: 12 }} />
+                  View Only
+                </span>
+              )}
+              
+              {showAuth && isAdmin && (
+                <Link
+                  to="/settings"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#9ca3af', fontSize: '0.875rem', textDecoration: 'none' }}
+                >
+                  <Settings style={{ width: 18, height: 18 }} />
+                  <span>Settings</span>
+                </Link>
+              )}
+              
+              {showAuth && <UserMenu />}
+            </div>
           </div>
         </div>
       </header>

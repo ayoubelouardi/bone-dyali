@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import * as storage from '../lib/storage'
+import { useAuth } from '../contexts/AuthContext'
 
 export function usePurchaseOrders(bookId) {
+  const { isAdmin } = useAuth()
   const [orders, setOrders] = useState(() =>
     bookId ? storage.getPurchaseOrders(bookId) : []
   )
@@ -17,11 +19,15 @@ export function usePurchaseOrders(bookId) {
   const addOrder = useCallback(
     (params) => {
       if (!bookId) return null
+      if (!isAdmin) {
+        console.warn('Viewers cannot add orders')
+        return null
+      }
       const po = storage.createPurchaseOrder(bookId, params)
       setOrders(storage.getPurchaseOrders(bookId))
       return po
     },
-    [bookId]
+    [bookId, isAdmin]
   )
 
   const getOrder = useCallback(
@@ -32,6 +38,10 @@ export function usePurchaseOrders(bookId) {
   const updateOrder = useCallback(
     (poId, updates) => {
       if (!bookId) return null
+      if (!isAdmin) {
+        console.warn('Viewers cannot update orders')
+        return null
+      }
       try {
         const po = storage.updatePurchaseOrder(bookId, poId, updates)
         setOrders(storage.getPurchaseOrders(bookId))
@@ -41,18 +51,22 @@ export function usePurchaseOrders(bookId) {
         return null
       }
     },
-    [bookId]
+    [bookId, isAdmin]
   )
 
   const toggleLock = useCallback(
     (poId) => {
       if (!bookId) return null
+      if (!isAdmin) {
+        console.warn('Viewers cannot toggle lock')
+        return null
+      }
       const po = storage.togglePOLock(bookId, poId)
       setOrders(storage.getPurchaseOrders(bookId))
       return po
     },
-    [bookId]
+    [bookId, isAdmin]
   )
 
-  return { orders, refresh, addOrder, getOrder, updateOrder, toggleLock }
+  return { orders, refresh, addOrder, getOrder, updateOrder, toggleLock, canEdit: isAdmin }
 }

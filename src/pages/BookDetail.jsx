@@ -27,11 +27,12 @@ export default function BookDetail() {
   const { bookId } = useParams()
   const navigate = useNavigate()
   const { removeBook } = useBooks()
-  const { orders } = usePurchaseOrders(bookId)
+  const { orders, canEdit: canEditOrders } = usePurchaseOrders(bookId)
   const book = bookId === 'new' ? null : getBook(bookId)
   const toast = useToast()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [expandedSections, setExpandedSections] = useState({ O: false, OR: false, P: false })
+  const canEdit = canEditOrders
 
   const getOrderType = (order) => {
     if (order?.type === 'OR') return 'OR'
@@ -144,24 +145,28 @@ export default function BookDetail() {
               Print Book
             </Button>
           </Link>
-          <Link to={`/book/${bookId}/po/new`}>
-            <Button variant="primary" icon={Plus}>
-              New O
-            </Button>
-          </Link>
-          <Link to={`/book/${bookId}/po/new?type=or`}>
-            <Button variant="secondary" icon={Plus} style={{ backgroundColor: '#f59e0b', color: '#ffffff' }}>
-              New OR
-            </Button>
-          </Link>
-          <Link to={`/book/${bookId}/po/new?type=p`}>
-            <Button variant="success" icon={Plus}>
-              Add Payment
-            </Button>
-          </Link>
-          <Button variant="danger" icon={Trash2} onClick={handleDelete}>
-            Delete
-          </Button>
+          {canEdit && (
+            <>
+              <Link to={`/book/${bookId}/po/new`}>
+                <Button variant="primary" icon={Plus}>
+                  New O
+                </Button>
+              </Link>
+              <Link to={`/book/${bookId}/po/new?type=or`}>
+                <Button variant="secondary" icon={Plus} style={{ backgroundColor: '#f59e0b', color: '#ffffff' }}>
+                  New OR
+                </Button>
+              </Link>
+              <Link to={`/book/${bookId}/po/new?type=p`}>
+                <Button variant="success" icon={Plus}>
+                  Add Payment
+                </Button>
+              </Link>
+              <Button variant="danger" icon={Trash2} onClick={handleDelete}>
+                Delete
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -362,7 +367,7 @@ export default function BookDetail() {
                                 {signedTotal.toFixed(2)} MAD
                               </td>
                               <td style={{ padding: '0.875rem 1rem', textAlign: 'right' }}>
-                                {!po.locked && (
+                                {canEdit && !po.locked && (
                                   <Link
                                     to={`/book/${bookId}/po/${po.id}/edit`}
                                     style={{ padding: '0.5rem', color: '#9ca3af', borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}

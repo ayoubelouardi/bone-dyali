@@ -12,7 +12,7 @@ import { useToast } from '../components/ui/Toast'
 import { useState } from 'react'
 
 export default function Dashboard() {
-  const { books, refresh } = useBooks()
+  const { books, refresh, canEdit } = useBooks()
   const fileInputRef = useRef(null)
   const toast = useToast()
   const [showNukeDialog, setShowNukeDialog] = useState(false)
@@ -61,18 +61,24 @@ export default function Dashboard() {
           <Button variant="secondary" size="sm" icon={Download} onClick={handleExport}>
             Export
           </Button>
-          <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
-          <Button variant="secondary" size="sm" icon={Upload} onClick={handleImportClick}>
-            Import
-          </Button>
-          <Button variant="danger" size="sm" icon={Trash2} onClick={handleNuke}>
-            Nuke
-          </Button>
-          <Link to="/book/new">
-            <Button variant="primary" size="sm" icon={Plus}>
-              Create Book
-            </Button>
-          </Link>
+          {canEdit && (
+            <>
+              <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+              <Button variant="secondary" size="sm" icon={Upload} onClick={handleImportClick}>
+                Import
+              </Button>
+              <Button variant="danger" size="sm" icon={Trash2} onClick={handleNuke}>
+                Nuke
+              </Button>
+            </>
+          )}
+          {canEdit && (
+            <Link to="/book/new">
+              <Button variant="primary" size="sm" icon={Plus}>
+                Create Book
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 

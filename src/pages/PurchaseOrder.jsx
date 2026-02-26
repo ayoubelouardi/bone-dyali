@@ -18,7 +18,7 @@ export default function PurchaseOrder() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const book = getBook(bookId)
-  const { addOrder, getOrder, updateOrder } = usePurchaseOrders(bookId)
+  const { addOrder, getOrder, updateOrder, canEdit } = usePurchaseOrders(bookId)
   const [client, setClient] = useState({ name: '', address: '', extra: '' })
   const [lineItems, setLineItems] = useState([emptyLine()])
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -138,6 +138,24 @@ export default function PurchaseOrder() {
       <div className="text-center py-12">
         <p className="text-gray-500 mb-4">Book not found.</p>
         <Button variant="secondary" onClick={() => navigate('/')}>Back to Dashboard</Button>
+      </div>
+    )
+  }
+
+  if (!canEdit && !isNew) {
+    return (
+      <div className="no-print max-w-3xl mx-auto">
+        <Breadcrumbs items={[
+          { label: 'Dashboard', href: '/' },
+          { label: book.name, href: `/book/${bookId}` },
+          { label: `${orderType} #${existingPO?.poNumber}` },
+        ]} />
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg">
+          You have view-only access to this purchase order.
+        </div>
+        <Button variant="secondary" onClick={() => navigate(`/book/${bookId}/po/${poId}`)}>
+          View Details
+        </Button>
       </div>
     )
   }
