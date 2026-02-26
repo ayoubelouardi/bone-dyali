@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { startSync, stopSync, syncData } from '../lib/syncService'
+import { nukeDatabase } from '../lib/storage'
 
 const defaultAuthValue = {
   user: null,
@@ -32,6 +33,7 @@ export const AuthProvider = ({ children }) => {
   const [syncStatus, setSyncStatus] = useState({ syncing: false, lastSynced: null, error: null })
   const [workspaceId, setWorkspaceId] = useState(null)
   const [needsWorkspaceChoice, setNeedsWorkspaceChoice] = useState(false)
+  const initialized = useRef(false)
 
   const handleSyncStatus = useCallback((result) => {
     if (result.success) {
@@ -55,41 +57,57 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
-  const checkWorkspaceMembership = useCallback(async (authUser) => {
-    // First check if user owns a workspace (admin)
-    const { data: ownedWorkspace } = await supabase
-      .from('workspaces')
-      .select('id')
-      .eq('owner_id', authUser.id)
-      .single()
+  const resolveWorkspace = useCallback(async (authUser) => {
+    try {
+      // First check if user owns a workspace (admin)
+      const { data: ownedWorkspace, error: ownerError } = await supabase
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', authUser.id)
+        .maybeSingle()
 
-    if (ownedWorkspace) {
-      setWorkspaceId(ownedWorkspace.id)
-      setRole('admin')
-      setNeedsWorkspaceChoice(false)
-      startSync(authUser.id, 'admin', ownedWorkspace.id, handleSyncStatus)
-      return
+      if (ownerError) {
+        console.error('Error checking workspace ownership:', ownerError)
+      }
+
+      if (ownedWorkspace) {
+        setWorkspaceId(ownedWorkspace.id)
+        setRole('admin')
+        setNeedsWorkspaceChoice(false)
+        startSync(authUser.id, 'admin', ownedWorkspace.id, handleSyncStatus)
+        return
+      }
+
+      // Check if user is a member of a workspace (viewer)
+      const { data: membership, error: memberError } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', authUser.id)
+        .maybeSingle()
+
+      if (memberError) {
+        console.error('Error checking membership:', memberError)
+      }
+
+      if (membership) {
+        setWorkspaceId(membership.workspace_id)
+        setRole('viewer')
+        setNeedsWorkspaceChoice(false)
+        startSync(authUser.id, 'viewer', membership.workspace_id, handleSyncStatus)
+        return
+      }
+
+      // User has no workspace - needs to choose
+      setNeedsWorkspaceChoice(true)
+      setRole(null)
+      setWorkspaceId(null)
+    } catch (err) {
+      console.error('Error resolving workspace:', err)
+      // Still allow the app to load - send to workspace choice
+      setNeedsWorkspaceChoice(true)
+      setRole(null)
+      setWorkspaceId(null)
     }
-
-    // Check if user is a member of a workspace (viewer)
-    const { data: membership } = await supabase
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', authUser.id)
-      .single()
-
-    if (membership) {
-      setWorkspaceId(membership.workspace_id)
-      setRole('viewer')
-      setNeedsWorkspaceChoice(false)
-      startSync(authUser.id, 'viewer', membership.workspace_id, handleSyncStatus)
-      return
-    }
-
-    // User has no workspace - needs to choose
-    setNeedsWorkspaceChoice(true)
-    setRole(null)
-    setWorkspaceId(null)
   }, [handleSyncStatus])
 
   useEffect(() => {
@@ -98,34 +116,47 @@ export const AuthProvider = ({ children }) => {
       return
     }
 
+    // Use getSession for initial load - reliable and not affected by race conditions
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session?.user) {
-        setUser(session.user)
-        await checkWorkspaceMembership(session.user)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+
+        if (session?.user) {
+          setUser(session.user)
+          await resolveWorkspace(session.user)
+        }
+      } catch (err) {
+        console.error('Auth init error:', err)
+      } finally {
+        setLoading(false)
+        initialized.current = true
       }
-      setLoading(false)
     }
 
     initAuth()
 
+    // Listen for future auth changes (sign in, sign out) AFTER initial load
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
+      // Skip the initial event — we handle it above with getSession
+      if (!initialized.current) return
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        setLoading(true)
         setUser(session.user)
-        await checkWorkspaceMembership(session.user)
-      } else {
+        await resolveWorkspace(session.user)
+        setLoading(false)
+      } else if (event === 'SIGNED_OUT') {
         setUser(null)
         setRole(null)
         setWorkspaceId(null)
         setNeedsWorkspaceChoice(false)
         stopSync()
       }
-      setLoading(false)
     })
 
     return () => subscription.unsubscribe()
-  }, [checkWorkspaceMembership])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const setWorkspaceInfo = useCallback((wsId, wsRole) => {
     setWorkspaceId(wsId)
@@ -156,6 +187,13 @@ export const AuthProvider = ({ children }) => {
     
     stopSync()
     await supabase.auth.signOut()
+
+    // Clear all local data so a subsequent login (same or different user)
+    // always pulls a clean state from the server instead of pushing stale
+    // local data into the wrong workspace.
+    nukeDatabase()
+    localStorage.removeItem('bone_dyali_updated_at')
+
     setUser(null)
     setRole(null)
     setWorkspaceId(null)
@@ -174,8 +212,8 @@ export const AuthProvider = ({ children }) => {
       .delete()
       .eq('user_id', user.id)
 
-    // Clear local data
-    localStorage.removeItem('bone_dyali_books')
+    // Clear ALL local data (books + all per-book PO keys + timestamp)
+    nukeDatabase()
     localStorage.removeItem('bone_dyali_updated_at')
 
     setWorkspaceId(null)

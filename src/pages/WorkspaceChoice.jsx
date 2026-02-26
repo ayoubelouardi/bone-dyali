@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, Users, Plus, ArrowRight, Loader } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { getBooks } from '../lib/storage'
+import { getBooks, getPurchaseOrders, saveBooks, savePurchaseOrders } from '../lib/storage'
 
 export default function WorkspaceChoice() {
   const navigate = useNavigate()
@@ -42,13 +42,17 @@ export default function WorkspaceChoice() {
     try {
       // Get local data to sync
       const localBooks = getBooks() || []
-      
+      const purchaseOrders = {}
+      for (const book of localBooks) {
+        purchaseOrders[book.id] = getPurchaseOrders(book.id)
+      }
+
       // Create workspace
       const { data: workspace, error: createError } = await supabase
         .from('workspaces')
         .insert({
           owner_id: user.id,
-          data: { books: localBooks },
+          data: { books: localBooks, purchaseOrders },
           updated_at: new Date().toISOString()
         })
         .select()
@@ -159,7 +163,10 @@ export default function WorkspaceChoice() {
         .single()
 
       if (workspace?.data?.books) {
-        localStorage.setItem('bone_dyali_books', JSON.stringify(workspace.data.books))
+        saveBooks(workspace.data.books)
+        for (const [bookId, orders] of Object.entries(workspace.data.purchaseOrders || {})) {
+          savePurchaseOrders(bookId, orders)
+        }
         localStorage.setItem('bone_dyali_updated_at', workspace.updated_at)
       }
 
@@ -190,7 +197,7 @@ export default function WorkspaceChoice() {
             {/* Create Workspace Option */}
             <button
               onClick={() => setMode('create')}
-              className="w-full bg-white rounded-xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow border-2 border-transparent hover:border-blue-500"
+              className="w-full bg-white rounded-xl shadow-lg p-6 text-left transition-all border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -214,7 +221,7 @@ export default function WorkspaceChoice() {
             {/* Join Workspace Option */}
             <button
               onClick={() => setMode('join')}
-              className="w-full bg-white rounded-xl shadow-lg p-6 text-left hover:shadow-xl transition-shadow border-2 border-transparent hover:border-green-500"
+              className="w-full bg-white rounded-xl shadow-lg p-6 text-left transition-all border-2 border-gray-200 hover:border-green-500 hover:shadow-xl"
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">

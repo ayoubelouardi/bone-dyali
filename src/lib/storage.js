@@ -1,4 +1,9 @@
 const BOOKS_KEY = 'bone_dyali_books'
+const UPDATED_AT_KEY = 'bone_dyali_updated_at'
+
+function touchUpdatedAt() {
+  localStorage.setItem(UPDATED_AT_KEY, new Date().toISOString())
+}
 
 function poKey(bookId) {
   return `bone_dyali_po_${bookId}`
@@ -29,6 +34,19 @@ export function getBooks() {
 export function saveBooks(books) {
   try {
     localStorage.setItem(BOOKS_KEY, JSON.stringify(books))
+    touchUpdatedAt()
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      console.warn('Storage quota exceeded. Please delete some books or export your data as backup.')
+    }
+    throw e
+  }
+}
+
+/** Write books without bumping the updated_at timestamp (used by sync pulls) */
+export function saveBooksFromServer(books) {
+  try {
+    localStorage.setItem(BOOKS_KEY, JSON.stringify(books))
   } catch (e) {
     if (e.name === 'QuotaExceededError') {
       console.warn('Storage quota exceeded. Please delete some books or export your data as backup.')
@@ -47,6 +65,19 @@ export function getPurchaseOrders(bookId) {
 }
 
 export function savePurchaseOrders(bookId, orders) {
+  try {
+    localStorage.setItem(poKey(bookId), JSON.stringify(orders))
+    touchUpdatedAt()
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      console.warn('Storage quota exceeded. Please delete some purchase orders or export your data as backup.')
+    }
+    throw e
+  }
+}
+
+/** Write POs without bumping the updated_at timestamp (used by sync pulls) */
+export function savePurchaseOrdersFromServer(bookId, orders) {
   try {
     localStorage.setItem(poKey(bookId), JSON.stringify(orders))
   } catch (e) {
