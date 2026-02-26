@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react'
-import { getBook } from '../lib/storage'
+import { getBook, getPurchaseOrder } from '../lib/db'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -17,16 +17,20 @@ export default function PurchaseOrder() {
   const { bookId, poId } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const book = getBook(bookId)
-  const { addOrder, getOrder, updateOrder, canEdit } = usePurchaseOrders(bookId)
+  const { addOrder, updateOrder, canEdit } = usePurchaseOrders(bookId)
+
+  const [book, setBook] = useState(null)
+  const [existingPO, setExistingPO] = useState(null)
+  const [dataLoading, setDataLoading] = useState(true)
+
   const [client, setClient] = useState({ name: '', address: '', extra: '' })
   const [lineItems, setLineItems] = useState([emptyLine()])
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [isInitialized, setIsInitialized] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const isNew = !poId || poId === 'new'
-  const existingPO = isNew ? null : getOrder(poId)
   const requestedType = searchParams.get('type')?.toUpperCase()
   const newOrderType = requestedType === 'OR' ? 'OR' : requestedType === 'P' ? 'P' : 'O'
   const orderType = isNew
@@ -39,7 +43,28 @@ export default function PurchaseOrder() {
   const orderTypeLabel = orderType === 'OR' ? 'Order Returned' : orderType === 'P' ? 'Payment' : 'Purchase Order'
   const isPayment = orderType === 'P'
 
-  // Load existing PO data when editing
+  // Load book and existing PO from DB
+  useEffect(() => {
+    const load = async () => {
+      setDataLoading(true)
+      try {
+        const [bookData, poData] = await Promise.all([
+          getBook(bookId),
+          isNew ? null : getPurchaseOrder(bookId, poId),
+        ])
+        setBook(bookData)
+        setExistingPO(poData)
+      } catch {
+        setBook(null)
+        setExistingPO(null)
+      } finally {
+        setDataLoading(false)
+      }
+    }
+    load()
+  }, [bookId, poId, isNew])
+
+  // Initialize form from existing PO
   useEffect(() => {
     if (isNew) {
       setLineItems(isPayment ? [emptyPaymentLine()] : [emptyLine()])
@@ -98,7 +123,7 @@ export default function PurchaseOrder() {
     setLineItems((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!book) return
 
@@ -119,18 +144,32 @@ export default function PurchaseOrder() {
           amount: item.amount,
         }))
       : lineItems
-    
-    if (isNew) {
-      addOrder({ client, lineItems: normalizedLineItems, date, type: orderType })
-    } else {
-      const success = updateOrder(poId, { client, lineItems: normalizedLineItems, date })
-      if (!success) {
-        setErrorMessage('Unable to update this purchase order. It might be locked.')
-        return
+
+    setSubmitting(true)
+    try {
+      if (isNew) {
+        await addOrder({ client, lineItems: normalizedLineItems, date, type: orderType })
+      } else {
+        const result = await updateOrder(poId, { client, lineItems: normalizedLineItems, date })
+        if (!result) {
+          setErrorMessage('Unable to update this purchase order. It might be locked.')
+          return
+        }
       }
+      navigate(`/book/${bookId}`)
+    } catch (err) {
+      setErrorMessage(err?.message || 'Failed to save purchase order.')
+    } finally {
+      setSubmitting(false)
     }
-    
-    navigate(`/book/${bookId}`)
+  }
+
+  if (dataLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   if (!book) {
@@ -375,8 +414,8 @@ export default function PurchaseOrder() {
 
           {/* Submit Button */}
           <div className="flex gap-3 pt-4 border-t border-gray-100">
-            <Button type="submit" icon={Save}>
-              {isNew ? `Save ${orderTypeLabel}` : `Update ${orderTypeLabel}`}
+            <Button type="submit" icon={Save} disabled={submitting}>
+              {submitting ? 'Saving...' : isNew ? `Save ${orderTypeLabel}` : `Update ${orderTypeLabel}`}
             </Button>
           </div>
         </form>

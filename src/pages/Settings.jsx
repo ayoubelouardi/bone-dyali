@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { Copy, Check, Users, Trash2, Plus, Key, LogOut, RefreshCw } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+import { Copy, Check, Users, Trash2, Plus, Key, LogOut } from 'lucide-react'
 
 export const Settings = () => {
-  const { user, workspaceId, isAdmin, role, leaveWorkspace, syncStatus, forceSyncNow } = useAuth()
+  const { user, workspaceId, isAdmin, role, leaveWorkspace } = useAuth()
   const [inviteCodes, setInviteCodes] = useState([])
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [copiedCode, setCopiedCode] = useState(null)
-  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     if (workspaceId && isAdmin) {
@@ -22,8 +21,6 @@ export const Settings = () => {
   }, [workspaceId, isAdmin])
 
   const fetchInviteCodes = async () => {
-    if (!isSupabaseConfigured()) return
-    
     const { data } = await supabase
       .from('invite_codes')
       .select('*')
@@ -35,8 +32,6 @@ export const Settings = () => {
   }
 
   const fetchMembers = async () => {
-    if (!isSupabaseConfigured()) return
-    
     const { data } = await supabase
       .from('workspace_members')
       .select('*')
@@ -46,7 +41,7 @@ export const Settings = () => {
   }
 
   const generateInviteCode = async () => {
-    if (!isSupabaseConfigured() || !workspaceId) return
+    if (!workspaceId) return
     setGenerating(true)
 
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -57,10 +52,7 @@ export const Settings = () => {
 
     const { data, error } = await supabase
       .from('invite_codes')
-      .insert({
-        workspace_id: workspaceId,
-        code
-      })
+      .insert({ workspace_id: workspaceId, code })
       .select()
       .single()
 
@@ -103,27 +95,8 @@ export const Settings = () => {
   }
 
   const handleLeaveWorkspace = async () => {
-    if (!confirm('Are you sure you want to leave this workspace? Your local data will be cleared.')) return
+    if (!confirm('Are you sure you want to leave this workspace?')) return
     await leaveWorkspace()
-  }
-
-  const handleForceSync = async () => {
-    setSyncing(true)
-    await forceSyncNow()
-    setSyncing(false)
-  }
-
-  if (!isSupabaseConfigured()) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h2 className="text-lg font-medium text-yellow-800">Supabase Not Configured</h2>
-          <p className="text-yellow-700 mt-2">
-            Please configure Supabase credentials in your environment variables to enable sync features.
-          </p>
-        </div>
-      </div>
-    )
   }
 
   // Viewer settings page
@@ -142,28 +115,6 @@ export const Settings = () => {
             <p className="text-blue-700 text-sm">
               You have <strong>view-only</strong> access to this workspace. You can see all data but cannot make changes.
             </p>
-          </div>
-
-          {/* Sync Status */}
-          <div className="p-4 bg-gray-50 rounded-lg mb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-700">Sync Status</p>
-                {syncStatus.lastSynced && (
-                  <p className="text-xs text-gray-500">
-                    Last synced: {new Date(syncStatus.lastSynced).toLocaleTimeString()}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={handleForceSync}
-                disabled={syncing}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-                Sync Now
-              </button>
-            </div>
           </div>
 
           <button
@@ -188,38 +139,6 @@ export const Settings = () => {
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Settings</h1>
-
-      {/* Sync Status */}
-      <div className="bg-white border rounded-lg p-6 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <RefreshCw className="w-5 h-5 text-gray-500" />
-          <h2 className="text-lg font-medium">Sync Status</h2>
-        </div>
-        
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-          <div>
-            <p className="text-sm font-medium text-gray-700">
-              {syncStatus.error ? 'Sync Error' : 'Connected'}
-            </p>
-            {syncStatus.lastSynced && (
-              <p className="text-xs text-gray-500">
-                Last synced: {new Date(syncStatus.lastSynced).toLocaleTimeString()}
-              </p>
-            )}
-            {syncStatus.error && (
-              <p className="text-xs text-red-500">{syncStatus.error}</p>
-            )}
-          </div>
-          <button
-            onClick={handleForceSync}
-            disabled={syncing}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            Sync Now
-          </button>
-        </div>
-      </div>
 
       {/* Invite Codes Section */}
       <div className="bg-white border rounded-lg p-6 mb-6">

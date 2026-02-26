@@ -1,35 +1,40 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Download, Upload, Trash2 } from 'lucide-react'
 import { useBooks } from '../hooks/useBooks'
 import BookCard from '../components/BookCard'
 import { exportAllData, importAllData } from '../lib/exportImport'
-import { nukeDatabase } from '../lib/storage'
+import { nukeWorkspace } from '../lib/db'
+import { useAuth } from '../contexts/AuthContext'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { ConfirmDialog } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
-import { useState } from 'react'
 
 export default function Dashboard() {
-  const { books, refresh, canEdit } = useBooks()
+  const { books, loading, refresh, canEdit } = useBooks()
+  const { workspaceId } = useAuth()
   const fileInputRef = useRef(null)
   const toast = useToast()
   const [showNukeDialog, setShowNukeDialog] = useState(false)
 
-  const handleExport = () => {
-    exportAllData()
-    toast.success('Data exported successfully')
+  const handleExport = async () => {
+    try {
+      await exportAllData(workspaceId)
+      toast.success('Data exported successfully')
+    } catch (err) {
+      toast.error(err?.message || 'Export failed')
+    }
   }
 
   const handleImportClick = () => fileInputRef.current?.click()
-  
+
   const handleImport = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    importAllData(file)
-      .then(() => { 
-        refresh(); 
+    importAllData(file, workspaceId)
+      .then(() => {
+        refresh()
         e.target.value = ''
         toast.success('Data imported successfully')
       })
@@ -42,11 +47,16 @@ export default function Dashboard() {
     setShowNukeDialog(true)
   }
 
-  const confirmNuke = () => {
-    nukeDatabase()
-    refresh()
-    setShowNukeDialog(false)
-    toast.success('All data has been deleted')
+  const confirmNuke = async () => {
+    try {
+      await nukeWorkspace(workspaceId)
+      await refresh()
+      toast.success('All data has been deleted')
+    } catch (err) {
+      toast.error(err?.message || 'Failed to delete data')
+    } finally {
+      setShowNukeDialog(false)
+    }
   }
 
   return (
@@ -83,7 +93,11 @@ export default function Dashboard() {
       </div>
 
       {/* Book List */}
-      {books.length === 0 ? (
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : books.length === 0 ? (
         <Card className="text-center py-12" style={{ textAlign: 'center', padding: '3rem' }}>
           <div style={{ color: '#9ca3af', marginBottom: '1rem' }}>
             <svg style={{ width: 64, height: 64, margin: '0 auto' }} className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BookOpen, Users, Plus, ArrowRight, Loader } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { getBooks, getPurchaseOrders, saveBooks, savePurchaseOrders } from '../lib/storage'
+import { supabase } from '../lib/supabase'
 
 export default function WorkspaceChoice() {
   const navigate = useNavigate()
@@ -13,13 +12,8 @@ export default function WorkspaceChoice() {
   const [inviteCode, setInviteCode] = useState(searchParams.get('code') || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [hasLocalData, setHasLocalData] = useState(false)
 
   useEffect(() => {
-    const books = getBooks()
-    setHasLocalData(books && books.length > 0)
-    
-    // If code in URL, auto-select join mode
     if (searchParams.get('code')) {
       setMode('join')
     }
@@ -35,26 +29,15 @@ export default function WorkspaceChoice() {
   }
 
   const handleCreateWorkspace = async () => {
-    if (!user || !isSupabaseConfigured()) return
+    if (!user) return
     setLoading(true)
     setError('')
 
     try {
-      // Get local data to sync
-      const localBooks = getBooks() || []
-      const purchaseOrders = {}
-      for (const book of localBooks) {
-        purchaseOrders[book.id] = getPurchaseOrders(book.id)
-      }
-
-      // Create workspace
+      // Create workspace row (no data blob — books live in their own table)
       const { data: workspace, error: createError } = await supabase
         .from('workspaces')
-        .insert({
-          owner_id: user.id,
-          data: { books: localBooks, purchaseOrders },
-          updated_at: new Date().toISOString()
-        })
+        .insert({ owner_id: user.id })
         .select()
         .single()
 
@@ -72,17 +55,9 @@ export default function WorkspaceChoice() {
       const code = generateInviteCode()
       await supabase
         .from('invite_codes')
-        .insert({
-          workspace_id: workspace.id,
-          code
-        })
+        .insert({ workspace_id: workspace.id, code })
 
-      // Update auth context
       setWorkspaceInfo(workspace.id, 'admin')
-      
-      // Set local updated_at
-      localStorage.setItem('bone_dyali_updated_at', workspace.updated_at)
-      
       navigate('/')
     } catch (err) {
       setError(err.message)
@@ -92,7 +67,7 @@ export default function WorkspaceChoice() {
   }
 
   const handleJoinWorkspace = async () => {
-    if (!user || !isSupabaseConfigured() || !inviteCode.trim()) return
+    if (!user || !inviteCode.trim()) return
     setLoading(true)
     setError('')
 
@@ -149,30 +124,10 @@ export default function WorkspaceChoice() {
       // Mark invite code as used
       await supabase
         .from('invite_codes')
-        .update({
-          used_by: user.id,
-          used_at: new Date().toISOString()
-        })
+        .update({ used_by: user.id, used_at: new Date().toISOString() })
         .eq('id', invite.id)
 
-      // Fetch workspace data
-      const { data: workspace } = await supabase
-        .from('workspaces')
-        .select('data, updated_at')
-        .eq('id', invite.workspace_id)
-        .single()
-
-      if (workspace?.data?.books) {
-        saveBooks(workspace.data.books)
-        for (const [bookId, orders] of Object.entries(workspace.data.purchaseOrders || {})) {
-          savePurchaseOrders(bookId, orders)
-        }
-        localStorage.setItem('bone_dyali_updated_at', workspace.updated_at)
-      }
-
-      // Update auth context
       setWorkspaceInfo(invite.workspace_id, 'viewer')
-      
       navigate('/')
     } catch (err) {
       setError(err.message)
@@ -208,11 +163,6 @@ export default function WorkspaceChoice() {
                   <p className="text-gray-600 text-sm mt-1">
                     Start as admin. You can invite others to view your data.
                   </p>
-                  {hasLocalData && (
-                    <p className="text-green-600 text-sm mt-2">
-                      Your existing data will be synced to the cloud.
-                    </p>
-                  )}
                 </div>
                 <ArrowRight className="w-5 h-5 text-gray-400" />
               </div>
@@ -255,14 +205,6 @@ export default function WorkspaceChoice() {
               You will be the admin of this workspace
             </p>
           </div>
-
-          {hasLocalData && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-700 text-sm">
-                Your existing local data will be synced to the cloud.
-              </p>
-            </div>
-          )}
 
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">

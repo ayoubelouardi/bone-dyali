@@ -34,10 +34,10 @@ export default function BookForm() {
   const [ownerName, setOwnerName] = useState('')
   const [color, setColor] = useState(DEFAULT_COLOR)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    const book = addBook({ name, ownerName, color })
-    navigate(`/book/${book.id}`)
+    const book = await addBook({ name, ownerName, color })
+    if (book) navigate(`/book/${book.id}`)
   }
 
   return (

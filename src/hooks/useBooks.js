@@ -1,43 +1,68 @@
-import { useState, useCallback } from 'react'
-import * as storage from '../lib/storage'
+import { useState, useCallback, useEffect } from 'react'
+import * as db from '../lib/db'
 import { useAuth } from '../contexts/AuthContext'
 
 export function useBooks() {
-  const { isAdmin } = useAuth()
-  const [books, setBooks] = useState(() => storage.getBooks())
+  const { isAdmin, workspaceId } = useAuth()
+  const [books, setBooks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const fetchBooks = useCallback(async () => {
+    if (!workspaceId) {
+      setBooks([])
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      const data = await db.getBooks(workspaceId)
+      setBooks(data)
+      setError(null)
+    } catch (err) {
+      console.error('useBooks fetchBooks error:', err)
+      setError(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [workspaceId])
+
+  useEffect(() => {
+    fetchBooks()
+  }, [fetchBooks])
 
   const refresh = useCallback(() => {
-    setBooks(storage.getBooks())
-  }, [])
+    return fetchBooks()
+  }, [fetchBooks])
 
-  const addBook = useCallback((params) => {
+  const addBook = useCallback(async (params) => {
     if (!isAdmin) {
       console.warn('Viewers cannot add books')
       return null
     }
-    const book = storage.createBook(params)
-    setBooks(storage.getBooks())
+    const book = await db.createBook(workspaceId, params)
+    await fetchBooks()
     return book
-  }, [isAdmin])
+  }, [isAdmin, workspaceId, fetchBooks])
 
-  const updateBook = useCallback((id, updates) => {
+  const updateBook = useCallback(async (id, updates) => {
     if (!isAdmin) {
       console.warn('Viewers cannot update books')
       return null
     }
-    const updated = storage.updateBook(id, updates)
-    if (updated) setBooks(storage.getBooks())
+    const updated = await db.updateBook(id, updates)
+    await fetchBooks()
     return updated
-  }, [isAdmin])
+  }, [isAdmin, fetchBooks])
 
-  const removeBook = useCallback((id) => {
+  const removeBook = useCallback(async (id) => {
     if (!isAdmin) {
       console.warn('Viewers cannot remove books')
       return
     }
-    storage.deleteBook(id)
-    setBooks(storage.getBooks())
-  }, [isAdmin])
+    await db.deleteBook(id)
+    await fetchBooks()
+  }, [isAdmin, fetchBooks])
 
-  return { books, refresh, addBook, updateBook, removeBook, canEdit: isAdmin }
+  return { books, loading, error, refresh, addBook, updateBook, removeBook, canEdit: isAdmin }
 }

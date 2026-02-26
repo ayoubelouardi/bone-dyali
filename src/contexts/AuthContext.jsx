@@ -1,7 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { startSync, stopSync, syncData } from '../lib/syncService'
-import { nukeDatabase } from '../lib/storage'
+import { supabase } from '../lib/supabase'
 
 const defaultAuthValue = {
   user: null,
@@ -12,10 +10,8 @@ const defaultAuthValue = {
   isViewer: false,
   workspaceId: null,
   needsWorkspaceChoice: false,
-  syncStatus: { syncing: false, lastSynced: null, error: null },
   signInWithGoogle: async () => {},
   signOut: async () => {},
-  forceSyncNow: async () => {},
   setWorkspaceInfo: () => {},
   leaveWorkspace: async () => {}
 }
@@ -30,32 +26,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState({ syncing: false, lastSynced: null, error: null })
   const [workspaceId, setWorkspaceId] = useState(null)
   const [needsWorkspaceChoice, setNeedsWorkspaceChoice] = useState(false)
   const initialized = useRef(false)
-
-  const handleSyncStatus = useCallback((result) => {
-    if (result.success) {
-      setSyncStatus({
-        syncing: false,
-        lastSynced: new Date(),
-        error: null
-      })
-    } else if (result.reason === 'not_configured') {
-      setSyncStatus({
-        syncing: false,
-        lastSynced: null,
-        error: 'Supabase not configured'
-      })
-    } else {
-      setSyncStatus(prev => ({
-        ...prev,
-        syncing: false,
-        error: result.reason
-      }))
-    }
-  }, [])
 
   const resolveWorkspace = useCallback(async (authUser) => {
     try {
@@ -74,7 +47,6 @@ export const AuthProvider = ({ children }) => {
         setWorkspaceId(ownedWorkspace.id)
         setRole('admin')
         setNeedsWorkspaceChoice(false)
-        startSync(authUser.id, 'admin', ownedWorkspace.id, handleSyncStatus)
         return
       }
 
@@ -93,7 +65,6 @@ export const AuthProvider = ({ children }) => {
         setWorkspaceId(membership.workspace_id)
         setRole('viewer')
         setNeedsWorkspaceChoice(false)
-        startSync(authUser.id, 'viewer', membership.workspace_id, handleSyncStatus)
         return
       }
 
@@ -103,20 +74,13 @@ export const AuthProvider = ({ children }) => {
       setWorkspaceId(null)
     } catch (err) {
       console.error('Error resolving workspace:', err)
-      // Still allow the app to load - send to workspace choice
       setNeedsWorkspaceChoice(true)
       setRole(null)
       setWorkspaceId(null)
     }
-  }, [handleSyncStatus])
+  }, [])
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      setLoading(false)
-      return
-    }
-
-    // Use getSession for initial load - reliable and not affected by race conditions
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -135,9 +99,7 @@ export const AuthProvider = ({ children }) => {
 
     initAuth()
 
-    // Listen for future auth changes (sign in, sign out) AFTER initial load
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Skip the initial event — we handle it above with getSession
       if (!initialized.current) return
 
       if (event === 'SIGNED_IN' && session?.user) {
@@ -150,7 +112,6 @@ export const AuthProvider = ({ children }) => {
         setRole(null)
         setWorkspaceId(null)
         setNeedsWorkspaceChoice(false)
-        stopSync()
       }
     })
 
@@ -162,72 +123,37 @@ export const AuthProvider = ({ children }) => {
     setWorkspaceId(wsId)
     setRole(wsRole)
     setNeedsWorkspaceChoice(false)
-    if (user) {
-      startSync(user.id, wsRole, wsId, handleSyncStatus)
-    }
-  }, [user, handleSyncStatus])
+  }, [])
 
   const signInWithGoogle = async () => {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured')
-    }
-    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: window.location.origin
       }
     })
-    
     if (error) throw error
   }
 
   const signOut = async () => {
-    if (!isSupabaseConfigured()) return
-    
-    stopSync()
     await supabase.auth.signOut()
-
-    // Clear all local data so a subsequent login (same or different user)
-    // always pulls a clean state from the server instead of pushing stale
-    // local data into the wrong workspace.
-    nukeDatabase()
-    localStorage.removeItem('bone_dyali_updated_at')
-
     setUser(null)
     setRole(null)
     setWorkspaceId(null)
     setNeedsWorkspaceChoice(false)
-    setSyncStatus({ syncing: false, lastSynced: null, error: null })
   }
 
   const leaveWorkspace = async () => {
-    if (!isSupabaseConfigured() || !user || role !== 'viewer') return
+    if (!user || role !== 'viewer') return
 
-    stopSync()
-
-    // Delete membership
     await supabase
       .from('workspace_members')
       .delete()
       .eq('user_id', user.id)
 
-    // Clear ALL local data (books + all per-book PO keys + timestamp)
-    nukeDatabase()
-    localStorage.removeItem('bone_dyali_updated_at')
-
     setWorkspaceId(null)
     setRole(null)
     setNeedsWorkspaceChoice(true)
-    setSyncStatus({ syncing: false, lastSynced: null, error: null })
-  }
-
-  const forceSyncNow = async () => {
-    if (!user || !workspaceId) return
-    setSyncStatus(prev => ({ ...prev, syncing: true }))
-    const result = await syncData(user.id, role, workspaceId)
-    handleSyncStatus(result)
-    return result
   }
 
   const value = {
@@ -239,10 +165,8 @@ export const AuthProvider = ({ children }) => {
     isViewer: role === 'viewer',
     workspaceId,
     needsWorkspaceChoice,
-    syncStatus,
     signInWithGoogle,
     signOut,
-    forceSyncNow,
     setWorkspaceInfo,
     leaveWorkspace
   }

@@ -1,72 +1,77 @@
 import { useState, useCallback, useEffect } from 'react'
-import * as storage from '../lib/storage'
+import * as db from '../lib/db'
 import { useAuth } from '../contexts/AuthContext'
 
 export function usePurchaseOrders(bookId) {
-  const { isAdmin } = useAuth()
-  const [orders, setOrders] = useState(() =>
-    bookId ? storage.getPurchaseOrders(bookId) : []
-  )
+  const { isAdmin, workspaceId } = useAuth()
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const fetchOrders = useCallback(async () => {
+    if (!bookId) {
+      setOrders([])
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      const data = await db.getPurchaseOrders(bookId)
+      setOrders(data)
+      setError(null)
+    } catch (err) {
+      console.error('usePurchaseOrders fetchOrders error:', err)
+      setError(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [bookId])
 
   useEffect(() => {
-    setOrders(bookId ? storage.getPurchaseOrders(bookId) : [])
-  }, [bookId])
+    fetchOrders()
+  }, [fetchOrders])
 
   const refresh = useCallback(() => {
-    if (bookId) setOrders(storage.getPurchaseOrders(bookId))
-  }, [bookId])
+    return fetchOrders()
+  }, [fetchOrders])
 
-  const addOrder = useCallback(
-    (params) => {
-      if (!bookId) return null
-      if (!isAdmin) {
-        console.warn('Viewers cannot add orders')
-        return null
-      }
-      const po = storage.createPurchaseOrder(bookId, params)
-      setOrders(storage.getPurchaseOrders(bookId))
+  const addOrder = useCallback(async (params) => {
+    if (!bookId) return null
+    if (!isAdmin) {
+      console.warn('Viewers cannot add orders')
+      return null
+    }
+    const po = await db.createPurchaseOrder(bookId, workspaceId, params)
+    await fetchOrders()
+    return po
+  }, [bookId, isAdmin, workspaceId, fetchOrders])
+
+  const updateOrder = useCallback(async (poId, updates) => {
+    if (!bookId) return null
+    if (!isAdmin) {
+      console.warn('Viewers cannot update orders')
+      return null
+    }
+    try {
+      const po = await db.updatePurchaseOrder(poId, updates)
+      await fetchOrders()
       return po
-    },
-    [bookId, isAdmin]
-  )
+    } catch (err) {
+      console.warn(err.message)
+      return null
+    }
+  }, [bookId, isAdmin, fetchOrders])
 
-  const getOrder = useCallback(
-    (poId) => storage.getPurchaseOrder(bookId, poId),
-    [bookId]
-  )
+  const toggleLock = useCallback(async (poId) => {
+    if (!bookId) return null
+    if (!isAdmin) {
+      console.warn('Viewers cannot toggle lock')
+      return null
+    }
+    const po = await db.togglePOLock(poId)
+    await fetchOrders()
+    return po
+  }, [bookId, isAdmin, fetchOrders])
 
-  const updateOrder = useCallback(
-    (poId, updates) => {
-      if (!bookId) return null
-      if (!isAdmin) {
-        console.warn('Viewers cannot update orders')
-        return null
-      }
-      try {
-        const po = storage.updatePurchaseOrder(bookId, poId, updates)
-        setOrders(storage.getPurchaseOrders(bookId))
-        return po
-      } catch (error) {
-        console.warn(error.message)
-        return null
-      }
-    },
-    [bookId, isAdmin]
-  )
-
-  const toggleLock = useCallback(
-    (poId) => {
-      if (!bookId) return null
-      if (!isAdmin) {
-        console.warn('Viewers cannot toggle lock')
-        return null
-      }
-      const po = storage.togglePOLock(bookId, poId)
-      setOrders(storage.getPurchaseOrders(bookId))
-      return po
-    },
-    [bookId, isAdmin]
-  )
-
-  return { orders, refresh, addOrder, getOrder, updateOrder, toggleLock, canEdit: isAdmin }
+  return { orders, loading, error, refresh, addOrder, updateOrder, toggleLock, canEdit: isAdmin }
 }

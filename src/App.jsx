@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import { ToastProvider } from './components/ui/Toast'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { isSupabaseConfigured } from './lib/supabase'
 import Dashboard from './pages/Dashboard'
 import BookForm from './pages/BookForm'
 import BookDetail from './pages/BookDetail'
@@ -24,12 +23,11 @@ const ProtectedRoute = ({ children }) => {
     )
   }
 
-  if (!isAuthenticated && isSupabaseConfigured()) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
-  // Redirect to workspace choice if user has no workspace
-  if (isAuthenticated && needsWorkspaceChoice) {
+  if (needsWorkspaceChoice) {
     return <Navigate to="/workspace-choice" replace />
   }
 
@@ -65,13 +63,11 @@ const WorkspaceChoiceRoute = ({ children }) => {
     )
   }
 
-  // Not logged in - go to login
-  if (!isAuthenticated && isSupabaseConfigured()) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
-  // Has workspace - go to dashboard
-  if (isAuthenticated && !needsWorkspaceChoice) {
+  if (!needsWorkspaceChoice) {
     return <Navigate to="/" replace />
   }
 

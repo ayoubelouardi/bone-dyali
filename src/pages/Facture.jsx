@@ -1,28 +1,45 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Edit3, Lock, Unlock } from 'lucide-react'
-import { getBook, getPurchaseOrder } from '../lib/storage'
+import { getBook, getPurchaseOrder } from '../lib/db'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
 import FactureView from '../components/FactureView'
 import { useState, useEffect } from 'react'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import Breadcrumbs from '../components/ui/Breadcrumbs'
-import Card from '../components/ui/Card'
 import { useToast } from '../components/ui/Toast'
 
 export default function Facture() {
   const { bookId, poId } = useParams()
   const navigate = useNavigate()
-  const book = getBook(bookId)
-  const { toggleLock, getOrder } = usePurchaseOrders(bookId)
-  const [po, setPO] = useState(getPurchaseOrder(bookId, poId))
+  const { toggleLock } = usePurchaseOrders(bookId)
   const toast = useToast()
-  const orderType = po?.type === 'OR' ? 'OR' : po?.type === 'P' ? 'P' : 'O'
 
-  // Refresh PO data when it changes
+  const [book, setBook] = useState(null)
+  const [po, setPO] = useState(null)
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
-    setPO(getPurchaseOrder(bookId, poId))
+    setLoading(true)
+    Promise.all([getBook(bookId), getPurchaseOrder(bookId, poId)])
+      .then(([bookData, poData]) => {
+        setBook(bookData)
+        setPO(poData)
+      })
+      .catch(() => {
+        setBook(null)
+        setPO(null)
+      })
+      .finally(() => setLoading(false))
   }, [bookId, poId])
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   if (!book || !po) {
     return (
@@ -33,8 +50,10 @@ export default function Facture() {
     )
   }
 
-  const handleToggleLock = () => {
-    const updated = toggleLock(poId)
+  const orderType = po?.type === 'OR' ? 'OR' : po?.type === 'P' ? 'P' : 'O'
+
+  const handleToggleLock = async () => {
+    const updated = await toggleLock(poId)
     if (updated) {
       setPO(updated)
       toast.success(`${orderType} #${po.poNumber} ${updated.locked ? 'locked' : 'unlocked'} successfully`)

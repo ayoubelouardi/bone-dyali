@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Lock, Edit3, Calendar, Printer, ChevronRight, ChevronDown } from 'lucide-react'
 
@@ -15,7 +15,7 @@ function hexToRgba(hex, alpha = 0.08) {
 }
 import { useBooks } from '../hooks/useBooks'
 import { usePurchaseOrders } from '../hooks/usePurchaseOrders'
-import { getBook } from '../lib/storage'
+import { getBook } from '../lib/db'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
@@ -27,12 +27,22 @@ export default function BookDetail() {
   const { bookId } = useParams()
   const navigate = useNavigate()
   const { removeBook } = useBooks()
-  const { orders, canEdit: canEditOrders } = usePurchaseOrders(bookId)
-  const book = bookId === 'new' ? null : getBook(bookId)
+  const { orders, loading: ordersLoading, canEdit: canEditOrders } = usePurchaseOrders(bookId)
+  const [book, setBook] = useState(null)
+  const [bookLoading, setBookLoading] = useState(true)
   const toast = useToast()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [expandedSections, setExpandedSections] = useState({ O: false, OR: false, P: false })
   const canEdit = canEditOrders
+
+  useEffect(() => {
+    if (bookId === 'new') return
+    setBookLoading(true)
+    getBook(bookId)
+      .then(setBook)
+      .catch(() => setBook(null))
+      .finally(() => setBookLoading(false))
+  }, [bookId])
 
   const getOrderType = (order) => {
     if (order?.type === 'OR') return 'OR'
@@ -90,6 +100,14 @@ export default function BookDetail() {
     return null
   }
 
+  if (bookLoading || ordersLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   if (!book) {
     return (
       <div className="text-center py-12">
@@ -103,8 +121,8 @@ export default function BookDetail() {
     setShowDeleteDialog(true)
   }
 
-  const confirmDelete = () => {
-    removeBook(book.id)
+  const confirmDelete = async () => {
+    await removeBook(book.id)
     navigate('/')
     toast.success('Book deleted successfully')
   }
@@ -297,14 +315,6 @@ export default function BookDetail() {
                           const orderColor = type === 'OR' ? '#d97706' : type === 'P' ? '#16a34a' : book.color
                           const valueColor = type === 'OR' ? '#b45309' : type === 'P' ? '#15803d' : '#111827'
 
-                          const paymentBreakdown = type === 'P'
-                            ? {
-                                cash: po.lineItems.reduce((sum, item) => item.paymentType === 'Cash' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
-                                check: po.lineItems.reduce((sum, item) => item.paymentType === 'Check' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
-                                etra: po.lineItems.reduce((sum, item) => item.paymentType === 'Etra' ? sum + (Number(item.amount ?? item.unitPrice) || 0) : sum, 0),
-                              }
-                            : null
-
                           return (
                             <tr
                               key={po.id}
@@ -341,7 +351,6 @@ export default function BookDetail() {
                                     {po.date}
                                   </span>
                                   <span>{po.client?.name || 'No client'}</span>
-                                  {/* payment breakdown moved to dedicated columns for P section */}
                                 </div>
                               </td>
                               {section.type !== 'P' ? (
