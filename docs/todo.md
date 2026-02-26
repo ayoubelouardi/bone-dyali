@@ -11,6 +11,7 @@
 - [x] Add Book PDF
 
 - [x] Add Categorization for the O, OR, P.
+- [ ] remove sync for view only users
 - [ ] Make a print for each.
 - [ ] Make a plan for synyc and login in and security.
 

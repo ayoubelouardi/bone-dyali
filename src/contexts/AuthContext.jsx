@@ -3,14 +3,24 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { startSync, stopSync, syncData } from '../lib/syncService'
 import { getBooks } from '../lib/storage'
 
-const AuthContext = createContext(null)
+const defaultAuthValue = {
+  user: null,
+  role: 'admin',
+  loading: false,
+  isAuthenticated: false,
+  isAdmin: true,
+  isViewer: false,
+  workspaceId: null,
+  syncStatus: { syncing: false, lastSynced: null, error: null },
+  signInWithGoogle: async () => {},
+  signOut: async () => {},
+  forceSyncNow: async () => {}
+}
+
+const AuthContext = createContext(defaultAuthValue)
 
 export const useAuth = () => {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider')
-  }
-  return context
+  return useContext(AuthContext)
 }
 
 export const AuthProvider = ({ children }) => {
